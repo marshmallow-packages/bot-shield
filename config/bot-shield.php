@@ -36,6 +36,99 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Agent Rules
+    |--------------------------------------------------------------------------
+    |
+    | Explicit user agent rules, evaluated in order before any detector runs, so
+    | the first match always wins. Put your most specific rules first. Patterns
+    | are case insensitive substrings unless "regex" is true.
+    |
+    | Actions:
+    |   allow     : never a bot, so its exceptions are still reported. For
+    |               uptime monitors and your own tooling.
+    |   ignore    : a bot for reporting purposes, but free to browse and submit.
+    |   challenge : always forced through the captcha, whatever its score.
+    |   block     : refused on guarded form submissions. Page views are
+    |               untouched, so search engines keep crawling normally.
+    |
+    */
+
+    'agents' => [
+
+        'rules' => [
+
+            ['pattern' => 'Oh Dear', 'action' => 'allow'],
+            ['pattern' => 'UptimeRobot', 'action' => 'allow'],
+            ['pattern' => 'Better Uptime', 'action' => 'allow'],
+            ['pattern' => 'Pingdom', 'action' => 'allow'],
+            ['pattern' => 'StatusCake', 'action' => 'allow'],
+
+            ['pattern' => 'Googlebot', 'action' => 'block'],
+            ['pattern' => 'Storebot-Google', 'action' => 'block'],
+            ['pattern' => 'Bingbot', 'action' => 'block'],
+            ['pattern' => 'Applebot', 'action' => 'block'],
+            ['pattern' => 'DuckDuckBot', 'action' => 'block'],
+            ['pattern' => 'YandexBot', 'action' => 'block'],
+            ['pattern' => 'Baiduspider', 'action' => 'block'],
+            ['pattern' => 'AhrefsBot', 'action' => 'block'],
+            ['pattern' => 'SemrushBot', 'action' => 'block'],
+
+            ['pattern' => 'GPTBot', 'action' => 'block'],
+            ['pattern' => 'OAI-SearchBot', 'action' => 'block'],
+            ['pattern' => 'ChatGPT-User', 'action' => 'block'],
+            ['pattern' => 'ClaudeBot', 'action' => 'block'],
+            ['pattern' => 'Claude-Web', 'action' => 'block'],
+            ['pattern' => 'anthropic-ai', 'action' => 'block'],
+            ['pattern' => 'PerplexityBot', 'action' => 'block'],
+            ['pattern' => 'CCBot', 'action' => 'block'],
+            ['pattern' => 'Bytespider', 'action' => 'block'],
+            ['pattern' => 'Amazonbot', 'action' => 'block'],
+            ['pattern' => 'Meta-ExternalAgent', 'action' => 'block'],
+
+            ['pattern' => 'curl/', 'action' => 'block'],
+            ['pattern' => 'Wget/', 'action' => 'block'],
+            ['pattern' => 'python-requests', 'action' => 'block'],
+            ['pattern' => 'python-urllib', 'action' => 'block'],
+            ['pattern' => 'aiohttp', 'action' => 'block'],
+            ['pattern' => 'Go-http-client', 'action' => 'block'],
+            ['pattern' => 'Java/', 'action' => 'block'],
+            ['pattern' => 'Apache-HttpClient', 'action' => 'block'],
+            ['pattern' => 'libwww-perl', 'action' => 'block'],
+            ['pattern' => 'Scrapy', 'action' => 'block'],
+            ['pattern' => 'HeadlessChrome', 'action' => 'block'],
+            ['pattern' => 'PhantomJS', 'action' => 'block'],
+            ['pattern' => 'Nmap', 'action' => 'block'],
+            ['pattern' => 'masscan', 'action' => 'block'],
+            ['pattern' => 'zgrab', 'action' => 'block'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Form Guard
+    |--------------------------------------------------------------------------
+    |
+    | Refuses guarded form submissions, through the #[BlocksBots] Livewire
+    | attribute or the ProtectsAgainstBots trait.
+    |
+    | "use_detector" additionally refuses anything the detector considers a bot,
+    | not only agents matched by a block rule. It is off by default because the
+    | default detector treats every user agent without "Mozilla/" as a bot,
+    | which would also refuse legitimate API and mobile clients.
+    |
+    */
+
+    'forms' => [
+
+        'enabled' => env('BOT_SHIELD_FORM_GUARD_ENABLED', true),
+
+        'use_detector' => env('BOT_SHIELD_FORM_GUARD_USE_DETECTOR', false),
+
+        'status' => 403,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Exception Hardening
     |--------------------------------------------------------------------------
     |

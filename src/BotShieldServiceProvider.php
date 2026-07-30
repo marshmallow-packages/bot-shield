@@ -7,7 +7,7 @@ namespace Marshmallow\BotShield;
 use Illuminate\Support\ServiceProvider;
 use Marshmallow\BotShield\Console\Commands\BotShieldCommand;
 use Marshmallow\BotShield\Contracts\BotDetector;
-use Marshmallow\BotShield\Detectors\UserAgentBotDetector;
+use Marshmallow\BotShield\Detectors\BotDetectorFactory;
 
 class BotShieldServiceProvider extends ServiceProvider
 {
@@ -18,7 +18,10 @@ class BotShieldServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/bot-shield.php', 'bot-shield');
 
-        $this->app->singleton(BotDetector::class, UserAgentBotDetector::class);
+        $this->app->singleton(
+            BotDetector::class,
+            fn (): BotDetector => $this->app->make(BotDetectorFactory::class)->make(),
+        );
 
         $this->app->singleton(BotShield::class);
     }
