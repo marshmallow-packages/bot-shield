@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Livewire\Features\SupportAttributes\Attribute as LivewireAttribute;
 use Livewire\Features\SupportAttributes\SupportAttributes;
+use Livewire\Features\SupportValidation\SupportValidation;
 use Livewire\Livewire;
 use Marshmallow\BotShield\Tests\Fixtures\AlwaysBotDetector;
 use Marshmallow\BotShield\Tests\Fixtures\GuardedComponent;
@@ -31,9 +32,14 @@ describe('the livewire internals we depend on', function () {
         expect($call->getNumberOfParameters())->toBe(3);
     });
 
-    it('still ships the wrap and trigger helpers', function () {
-        expect(function_exists('Livewire\wrap'))->toBeTrue()
-            ->and(function_exists('Livewire\trigger'))->toBeTrue();
+    it('still ships the trigger helper that surfaces validation errors', function () {
+        expect(function_exists('Livewire\trigger'))->toBeTrue();
+    });
+
+    it('still converts validation exceptions through the exception hook', function () {
+        $exception = new ReflectionMethod(SupportValidation::class, 'exception');
+
+        expect($exception->getNumberOfParameters())->toBe(2);
     });
 });
 

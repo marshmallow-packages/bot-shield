@@ -129,6 +129,58 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Captcha
+    |--------------------------------------------------------------------------
+    |
+    | Drivers: "google-v3" (score based, invisible), "google-v2" (checkbox or
+    | invisible challenge), or "null" for sites protected by the honeypot and
+    | detector alone.
+    |
+    | The captcha disables itself while the keys are missing, so a site without
+    | keys is never asked for a token it cannot produce. "score_challenge" is
+    | the stricter threshold applied to agents matched by a challenge rule.
+    |
+    | "fail_open" decides what happens when the provider cannot be reached. It
+    | is off by default, so an outage refuses submissions rather than waving
+    | every bot through; turn it on if losing genuine leads is the worse cost.
+    |
+    */
+
+    'captcha' => [
+
+        'enabled' => env('BOT_SHIELD_RECAPTCHA_ENABLED', true),
+
+        'driver' => env('BOT_SHIELD_CAPTCHA_DRIVER', 'google-v3'),
+
+        'site_key' => env('BOT_SHIELD_RECAPTCHA_SITE_KEY'),
+
+        'secret_key' => env('BOT_SHIELD_RECAPTCHA_SECRET_KEY'),
+
+        'score' => env('BOT_SHIELD_RECAPTCHA_SCORE', 0.6),
+
+        'score_challenge' => env('BOT_SHIELD_RECAPTCHA_SCORE_CHALLENGE', 0.9),
+
+        'timeout' => env('BOT_SHIELD_RECAPTCHA_TIMEOUT', 5),
+
+        'connect_timeout' => env('BOT_SHIELD_RECAPTCHA_CONNECT_TIMEOUT', 3),
+
+        'fail_open' => env('BOT_SHIELD_RECAPTCHA_FAIL_OPEN', false),
+
+        'log_channel' => env('BOT_SHIELD_LOG_CHANNEL'),
+
+        'field' => 'g-recaptcha-response',
+
+        'theme' => env('BOT_SHIELD_RECAPTCHA_THEME', 'light'),
+
+        'size' => env('BOT_SHIELD_RECAPTCHA_SIZE', 'normal'),
+
+        'locale' => env('BOT_SHIELD_RECAPTCHA_LOCALE'),
+
+        'show_terms' => env('BOT_SHIELD_RECAPTCHA_SHOW_TERMS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Exception Hardening
     |--------------------------------------------------------------------------
     |

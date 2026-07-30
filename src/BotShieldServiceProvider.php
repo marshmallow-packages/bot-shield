@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Marshmallow\BotShield;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\View\Compilers\BladeCompiler;
+use Marshmallow\BotShield\Captcha\CaptchaManager;
+use Marshmallow\BotShield\Captcha\CaptchaRenderer;
 use Marshmallow\BotShield\Console\Commands\BotShieldCommand;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Detectors\BotDetectorFactory;
@@ -23,6 +26,8 @@ class BotShieldServiceProvider extends ServiceProvider
             fn (): BotDetector => $this->app->make(BotDetectorFactory::class)->make(),
         );
 
+        $this->app->singleton(CaptchaManager::class);
+
         $this->app->singleton(BotShield::class);
     }
 
@@ -34,6 +39,8 @@ class BotShieldServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'bot-shield');
 
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'bot-shield');
+
+        $this->registerBladeExtensions();
 
         if (! $this->app->runningInConsole()) {
             return;
@@ -58,5 +65,18 @@ class BotShieldServiceProvider extends ServiceProvider
         $this->commands([
             BotShieldCommand::class,
         ]);
+    }
+
+    private function registerBladeExtensions(): void
+    {
+        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade): void {
+            $blade->componentNamespace('Marshmallow\\BotShield\\View\\Components', 'bot-shield');
+
+            $blade->directive('botShieldRecaptcha', static fn (string $expression): string => sprintf(
+                '<?php echo app(%s::class)->render(%s); ?>',
+                '\\'.CaptchaRenderer::class,
+                $expression === '' ? '' : $expression,
+            ));
+        });
     }
 }
