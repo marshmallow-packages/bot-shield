@@ -46,9 +46,11 @@
             grecaptcha.execute();
         }
 
-        // An invisible widget only produces a token when asked, so request one
-        // as soon as the form is touched rather than at submit time, which
-        // would race the submission.
+        // An invisible widget only produces a token when asked, and asking at
+        // submit time races the submission, so it is asked twice: once now, so
+        // a visitor who submits without typing anything still has a token, and
+        // again on first interaction, so a slow form submits a fresh one rather
+        // than a token that expired while it was being filled in.
         var form = field.closest('form') || container.parentElement;
 
         if (form) {
