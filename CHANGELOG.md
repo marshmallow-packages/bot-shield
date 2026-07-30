@@ -1,6 +1,14 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.0...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.1...HEAD)
+
+## [v1.0.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.0...v1.0.1) - 2026-07-30
+
+### Fixed
+
+- `.claudeignore` and `testbench.yaml` no longer ship in the distributed package. Both are development files for this repository and mean nothing to a consuming application.
+
+No code changes: v1.0.0 and v1.0.1 behave identically.
 
 ## [v1.0.0](https://github.com/marshmallow-packages/bot-shield/releases/tag/v1.0.0) - 2026-07-30
 
