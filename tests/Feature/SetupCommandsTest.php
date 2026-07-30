@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\ServiceProvider;
 use Marshmallow\BotShield\Hardening\ExceptionHardening;
 use Marshmallow\BotShield\Installation\Installer;
 
@@ -168,24 +169,32 @@ describe('bot-shield:install', function () {
      * would be a lasting side effect of running the suite.
      */
     beforeEach(function () {
-        /*
-         * The publish target is resolved when the provider boots, so it cannot
-         * be redirected here and the published file has to be cleaned up after.
-         */
-        $this->publishedConfig = config_path('bot-shield.php');
-
         $this->installDirectory = tempDirectory();
 
         app()->setBasePath($this->installDirectory);
 
         expect(app()->basePath())->toBe($this->installDirectory);
+
+        /*
+         * The publish target was resolved against the Testbench skeleton when
+         * the provider booted, which is a directory the whole suite shares and
+         * reloads config from. Writing there makes the run order-dependent, so
+         * the registered target is redirected into this test's own directory.
+         */
+        $this->publishedConfig = $this->installDirectory.'/config/bot-shield.php';
+
+        $group = ServiceProvider::$publishGroups['bot-shield-config'] ?? [];
+
+        expect($group)->toHaveCount(1);
+
+        ServiceProvider::$publishGroups['bot-shield-config'] = array_map(
+            fn (): string => $this->publishedConfig,
+            $group,
+        );
     });
 
     afterEach(function () {
-        $files = new Filesystem;
-
-        $files->deleteDirectory($this->installDirectory);
-        $files->delete($this->publishedConfig);
+        (new Filesystem)->deleteDirectory($this->installDirectory);
     });
 
     it('publishes the config', function () {
