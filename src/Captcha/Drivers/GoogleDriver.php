@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Marshmallow\BotShield\Captcha\CaptchaVerdict;
 use Marshmallow\BotShield\Contracts\CaptchaDriver;
 use Marshmallow\BotShield\Enums\CaptchaOutcome;
+use Throwable;
 
 abstract class GoogleDriver implements CaptchaDriver
 {
@@ -46,11 +47,15 @@ abstract class GoogleDriver implements CaptchaDriver
                     'response' => $token,
                     'remoteip' => $request->ip(),
                 ]);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            $this->reportOutage($exception);
+
             return new CaptchaVerdict(CaptchaOutcome::Unavailable);
         }
 
         if ($response->failed()) {
+            $this->reportOutage($response->toException());
+
             return new CaptchaVerdict(CaptchaOutcome::Unavailable);
         }
 
@@ -93,6 +98,32 @@ abstract class GoogleDriver implements CaptchaDriver
     protected function succeeded(array $payload): bool
     {
         return ($payload['success'] ?? false) === true;
+    }
+
+    /**
+     * An unreachable provider refuses every submission, so it is worth knowing
+     * about. It is opt-in because a real outage means one report per attempt
+     * across every form, which is the kind of flood this package exists to
+     * prevent. Sites that had a report() in their own captcha code before
+     * adopting this one should turn it on to keep that signal.
+     */
+    protected function reportOutage(?Throwable $exception): void
+    {
+        if ($exception === null) {
+            return;
+        }
+
+        $report = filter_var(
+            $this->config->get('bot-shield.captcha.report_outages', false),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE,
+        ) === true;
+
+        if (! $report) {
+            return;
+        }
+
+        report($exception);
     }
 
     protected function secretKey(): ?string

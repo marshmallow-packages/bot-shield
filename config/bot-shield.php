@@ -330,6 +330,14 @@ return [
         'fail_open' => env('BOT_SHIELD_RECAPTCHA_FAIL_OPEN', false),
 
         /*
+        | An unreachable provider refuses every submission, so it is worth
+        | knowing about, but a real outage means one report per attempt across
+        | every form. Off by default for that reason. Turn it on if your site
+        | reported captcha failures to Sentry before adopting this package.
+        */
+        'report_outages' => env('BOT_SHIELD_RECAPTCHA_REPORT_OUTAGES', false),
+
+        /*
         | Every verification is logged with its score, which is how a threshold
         | gets tuned against real traffic. Turn "log" off for a site that keeps
         | its record in the events table alone, or where the log volume is not

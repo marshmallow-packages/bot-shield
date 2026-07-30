@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Marshmallow\BotShield\Captcha\CaptchaManager;
@@ -249,6 +251,46 @@ describe('when the provider cannot be reached', function () {
 
         expect(app(CaptchaManager::class)->verify('token', captchaRequest())->outcome)
             ->toBe(CaptchaOutcome::Unavailable);
+    });
+
+    /*
+     * Reporting is opt-in: a real outage refuses every submission on every form,
+     * so reporting by default would flood the tracker with the same event.
+     */
+    it('reports nothing to the error tracker by default', function () {
+        Exceptions::fake();
+
+        Http::fake(fn () => throw new ConnectionException('cURL error 28: timed out'));
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        Exceptions::assertNothingReported();
+    });
+
+    it('reports an unreachable provider once enabled', function () {
+        Exceptions::fake();
+
+        config()->set('bot-shield.captcha.report_outages', true);
+
+        Http::fake(fn () => throw new ConnectionException('cURL error 28: timed out'));
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        Exceptions::assertReported(ConnectionException::class);
+    });
+
+    it('reports a refused response as a request exception once enabled', function () {
+        Exceptions::fake();
+
+        config()->set('bot-shield.captcha.report_outages', true);
+
+        Http::fake([
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response('', 500),
+        ]);
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        Exceptions::assertReported(RequestException::class);
     });
 });
 
