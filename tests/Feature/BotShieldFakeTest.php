@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Http;
 use Marshmallow\BotShield\Captcha\CaptchaManager;
 use Marshmallow\BotShield\Enums\EventType;
@@ -166,4 +167,44 @@ it('asserts a tripped honeypot', function () {
     $fake->recorded()->record(EventType::Honeypot, 'tripped');
 
     $fake->assertHoneypotTripped();
+});
+
+describe('the driver the fake stands in for', function () {
+    it('renders the widget the application actually ships', function () {
+        config()->set('bot-shield.captcha.driver', 'google-v3');
+
+        BotShield::fake();
+
+        $html = Blade::render('<x-bot-shield::recaptcha />');
+
+        expect(app(CaptchaManager::class)->usesScores())->toBeTrue()
+            ->and($html)->toContain('grecaptcha.execute')
+            ->and($html)->not->toContain('class="g-recaptcha"');
+    });
+
+    it('follows a site onto the challenge driver', function () {
+        config()->set('bot-shield.captcha.driver', 'google-v2');
+
+        BotShield::fake();
+
+        expect(app(CaptchaManager::class)->usesScores())->toBeFalse()
+            ->and(Blade::render('<x-bot-shield::recaptcha />'))->toContain('class="g-recaptcha"');
+    });
+
+    it('takes an explicit driver when the test is about that driver', function () {
+        config()->set('bot-shield.captcha.driver', 'google-v3');
+
+        BotShield::fake('google-v2');
+
+        expect(app(CaptchaManager::class)->usesScores())->toBeFalse();
+    });
+
+    it('survives being faked twice', function () {
+        config()->set('bot-shield.captcha.driver', 'google-v3');
+
+        BotShield::fake();
+        BotShield::fake();
+
+        expect(app(CaptchaManager::class)->driverName())->toBe('google-v3');
+    });
 });

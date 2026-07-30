@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Marshmallow\BotShield\Testing;
 
 use Illuminate\Http\Request;
+use Marshmallow\BotShield\Captcha\CaptchaManager;
 use Marshmallow\BotShield\Captcha\CaptchaVerdict;
 use Marshmallow\BotShield\Contracts\CaptchaDriver;
 use Marshmallow\BotShield\Enums\CaptchaOutcome;
@@ -18,6 +19,18 @@ final class FakeCaptchaDriver implements CaptchaDriver
     private CaptchaOutcome $outcome = CaptchaOutcome::Passed;
 
     private ?float $score = 0.9;
+
+    /**
+     * The driver this one stands in for. Reporting "fake" here would change what
+     * CaptchaManager::usesScores() answers, and with it which widget the
+     * renderer chooses, so a test would assert markup the site never ships.
+     */
+    private string $impersonating = CaptchaManager::GOOGLE_V3;
+
+    public function impersonate(string $driver): void
+    {
+        $this->impersonating = $driver;
+    }
 
     public function passes(?float $score = 0.9): void
     {
@@ -69,7 +82,7 @@ final class FakeCaptchaDriver implements CaptchaDriver
 
     public function name(): string
     {
-        return 'fake';
+        return $this->impersonating;
     }
 
     public function siteKey(): string

@@ -33,11 +33,18 @@ final class BotShieldFake extends BotShield
 
     /**
      * Rebind the seams and forget the singletons that already captured them.
+     *
+     * The driver the application configured is read before it is replaced, so
+     * the fake keeps answering as that driver. Otherwise the renderer would see
+     * an unfamiliar name, decide the site is not on v3, and serve the checkbox
+     * widget to a test whose application ships the invisible one.
      */
-    public function activate(): self
+    public function activate(?string $driver = null): self
     {
         $this->container->instance(RecordsEvents::class, $this->recorder);
         $this->container->instance(FakeCaptchaDriver::class, $this->captcha);
+
+        $this->captcha->impersonate($driver ?? $this->configuredDriver());
 
         $this->config->set('bot-shield.enabled', true);
         $this->config->set('bot-shield.captcha.enabled', true);
@@ -191,6 +198,20 @@ final class BotShieldFake extends BotShield
         Assert::assertEmpty($this->recorder->all(), 'Expected Bot Shield to record nothing, but it recorded events.');
 
         return $this;
+    }
+
+    /**
+     * Calling fake() twice must not leave the fake impersonating itself.
+     */
+    private function configuredDriver(): string
+    {
+        $driver = $this->config->get('bot-shield.captcha.driver');
+
+        if (! is_string($driver) || $driver === '' || $driver === FakeCaptchaDriver::class) {
+            return CaptchaManager::GOOGLE_V3;
+        }
+
+        return $driver;
     }
 
     private function assertCaptchaOutcome(string $outcome): self
