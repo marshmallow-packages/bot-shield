@@ -2,7 +2,7 @@
 
 ## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.0...HEAD)
 
-## [v1.0.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.0...v1.0.0) - 2026-07-30
+## [v1.0.0](https://github.com/marshmallow-packages/bot-shield/releases/tag/v1.0.0) - 2026-07-30
 
 First stable release.
 
