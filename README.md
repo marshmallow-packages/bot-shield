@@ -124,7 +124,7 @@ Check: view the page source and you should see a hidden `div` with two inputs. I
 
 **5. Add reCAPTCHA to the same form.**
 
-Get keys from the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin), then:
+Create a key in the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin/create). Pick **score based (v3)** for the default driver, or **challenge (v2)** and set `BOT_SHIELD_CAPTCHA_DRIVER=google-v2`. Add every domain the form is served from, and see [Local development](#local-development) before you paste production keys into your own `.env`. The console gives you a site key and a secret key:
 
 ```dotenv
 BOT_SHIELD_RECAPTCHA_SITE_KEY=your-site-key
@@ -354,6 +354,8 @@ The rule is implicit, so it runs even when the field is absent. A scripted submi
 
 ## reCAPTCHA
 
+Keys come from the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin/create): choose score based (v3) for the default driver, or challenge (v2) with `BOT_SHIELD_CAPTCHA_DRIVER=google-v2`. The domain list on the key has to include every host that serves the form.
+
 Set the keys and you are done. Leave them empty and the captcha disables itself: nothing is rendered and nothing is verified.
 
 ```dotenv
@@ -378,6 +380,24 @@ Set `show_terms` to render Google's required notice when you hide the badge.
 Every verification is logged and recorded with its score, pass or fail. That is what makes the threshold reviewable, see `bot-shield:scores` below.
 
 When Google cannot be reached the submission is refused, because an outage should not become an open door. Set `fail_open` to `true` if losing genuine leads is the worse cost for your site.
+
+### Local development
+
+Simplest: leave both keys out of your local `.env`. The captcha needs a site key and a secret key before it does anything, so without them the component renders nothing, `verify()` returns skipped, and your forms submit exactly as they would with the captcha switched off. No local override needed.
+
+Do not copy production keys into a local `.env`. A key only works on the domains listed against it, so on an unlisted host Google refuses to solve the challenge client side, the token field stays empty, and the submission is refused as a missing token. The form looks broken and nothing in the logs blames the domain. `bot-shield:doctor` cannot catch this either: it sees two keys and reports the captcha as active.
+
+If you do want to exercise the real thing locally, add `localhost` and your local domain, `example.test` and the like, to the key's domain list in the console. A separate key for local work keeps that list off the production key.
+
+To switch it off explicitly instead, per environment:
+
+```dotenv
+BOT_SHIELD_RECAPTCHA_ENABLED=false
+```
+
+Or leave the captcha enabled and drop it to the null driver with `BOT_SHIELD_CAPTCHA_DRIVER=null`. Every other part of the package keeps working either way.
+
+For automated tests, do not disable it. `BotShield::fake()` scripts the answers without calling Google, see [Testing your own application](#testing-your-own-application).
 
 ## Middleware
 

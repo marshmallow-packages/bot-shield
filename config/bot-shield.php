@@ -297,8 +297,11 @@ return [
     | detector alone.
     |
     | The captcha disables itself while the keys are missing, so a site without
-    | keys is never asked for a token it cannot produce. "score_challenge" is
-    | the stricter threshold applied to agents matched by a challenge rule.
+    | keys is never asked for a token it cannot produce. That is also how local
+    | development stays simple: leave the keys out rather than copying the
+    | production pair, which Google will not solve on an unlisted domain.
+    | "score_challenge" is the stricter threshold applied to agents matched by
+    | a challenge rule.
     |
     | "fail_open" decides what happens when the provider cannot be reached. It
     | is off by default, so an outage refuses submissions rather than waving
