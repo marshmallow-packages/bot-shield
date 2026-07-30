@@ -90,6 +90,83 @@ it('renders the google terms notice only when enabled', function () {
         ->and($html)->toContain('protected by reCAPTCHA');
 });
 
+describe('moving the badge', function () {
+    it('leaves the invisible widget in the bottom right by default', function () {
+        configureCaptcha('google-v2');
+
+        expect(Blade::render('<x-bot-shield::recaptcha size="invisible" />'))
+            ->toContain('data-badge="bottomright"');
+    });
+
+    it('places it where config asks', function () {
+        configureCaptcha('google-v2');
+        config()->set('bot-shield.captcha.badge', 'inline');
+
+        expect(Blade::render('<x-bot-shield::recaptcha size="invisible" />'))
+            ->toContain('data-badge="inline"');
+    });
+
+    it('lets a tag override the position', function () {
+        configureCaptcha('google-v2');
+
+        expect(Blade::render('<x-bot-shield::recaptcha size="invisible" badge="bottomleft" />'))
+            ->toContain('data-badge="bottomleft"');
+    });
+});
+
+describe('hiding the badge', function () {
+    it('leaves the badge alone by default', function () {
+        configureCaptcha('google-v3');
+
+        expect(Blade::render('<x-bot-shield::recaptcha />'))->not->toContain('grecaptcha-badge');
+    });
+
+    it('hides the badge and shows the notice when enabled in config', function () {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.hide_badge', true);
+
+        $html = Blade::render('<x-bot-shield::recaptcha />');
+
+        /*
+         * The !important is asserted deliberately: Google sets visibility on the
+         * badge inline, so a rule without it is silently ignored.
+         */
+        expect($html)->toContain('.grecaptcha-badge')
+            ->and($html)->toContain('visibility: hidden !important')
+            ->and($html)->not->toContain('display: none')
+            ->and($html)->toContain('policies.google.com/privacy');
+    });
+
+    it('hides the badge on the invisible widget too', function () {
+        configureCaptcha('google-v2');
+        config()->set('bot-shield.captcha.hide_badge', true);
+
+        expect(Blade::render('<x-bot-shield::recaptcha size="invisible" />'))
+            ->toContain('.grecaptcha-badge');
+    });
+
+    it('hides the badge for a single tag on a site that leaves it visible', function (string $tag) {
+        configureCaptcha('google-v3');
+
+        $html = Blade::render($tag);
+
+        expect($html)->toContain('.grecaptcha-badge')
+            ->and($html)->toContain('policies.google.com/privacy');
+    })->with([
+        'string attribute' => '<x-bot-shield::recaptcha hide-badge="true" />',
+        'bound boolean' => '<x-bot-shield::recaptcha :hide-badge="true" />',
+        'directive option' => "@botShieldRecaptcha(['hideBadge' => true])",
+    ]);
+
+    it('keeps the badge for a single tag on a site that hides it', function () {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.hide_badge', true);
+
+        expect(Blade::render('<x-bot-shield::recaptcha :hide-badge="false" />'))
+            ->not->toContain('grecaptcha-badge');
+    });
+});
+
 describe('the blade directive', function () {
     it('renders the same widget as the component', function () {
         configureCaptcha('google-v3');

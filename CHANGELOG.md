@@ -8,6 +8,7 @@
 - Agent rules: one ordered list of user agent patterns evaluated before any detector, with `allow`, `ignore`, `challenge`, `block` and `deny` actions.
 - Bot detector drivers: `user-agent`, `crawler-detect`, or any class implementing `BotDetector`.
 - reCAPTCHA v2 and v3 behind a `CaptchaDriver` interface, exposed as the `#[ValidatesRecaptcha]` Livewire attribute, a `Recaptcha` validation rule, a blade component and the `@botShieldRecaptcha` directive.
+- `captcha.hide_badge` hides the reCAPTCHA badge and renders Google's required notice in its place, per site or per tag. `captcha.badge` moves it instead, on the invisible widget.
 - Honeypot form fields wrapping `spatie/laravel-honeypot`, which stays a suggested rather than a required dependency.
 - Probe path firewall middleware, submission rate limiting via `#[RateLimitsSubmissions]`, and optional crawler page view refusal.
 - Monitoring: a `bot_shield_events` table recording every captcha score, honeypot trip, blocked submission, suppressed exception and probe path hit, with `bot-shield:stats` and `bot-shield:scores`.

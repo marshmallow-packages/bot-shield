@@ -30,6 +30,12 @@ final class Recaptcha extends Component
         private readonly ?string $locale = null,
         private readonly ?string $action = null,
         private readonly ?string $property = null,
+        private readonly ?string $badge = null,
+        /*
+         * Accepts both hide-badge="true" and :hide-badge="$flag", which blade
+         * compiles to a string and a real boolean respectively.
+         */
+        private readonly bool|string|null $hideBadge = null,
     ) {}
 
     public function shouldRender(): bool
@@ -53,6 +59,8 @@ final class Recaptcha extends Component
             'locale' => $this->locale,
             'action' => $this->action,
             'property' => $this->property,
-        ], static fn (?string $value): bool => $value !== null);
+            'badge' => $this->badge,
+            'hideBadge' => $this->hideBadge,
+        ], static fn (bool|string|null $value): bool => $value !== null);
     }
 }

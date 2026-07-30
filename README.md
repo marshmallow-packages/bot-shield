@@ -141,6 +141,8 @@ Then verify on submit. For Livewire, add `#[ValidatesRecaptcha]` to the action a
 
 Check: `bot-shield:doctor` reports `Captcha ... google-v3, threshold 0.6`. Submit the form once, then `php artisan bot-shield:stats` shows one captcha verification. If the component renders nothing, the keys are missing.
 
+Set `BOT_SHIELD_RECAPTCHA_HIDE_BADGE=true` if you do not want Google's badge in the corner, see [Hiding the badge](#hiding-the-badge).
+
 > Deployed sites keep their env in the Forge UI, so set both keys there as well as locally.
 
 **6. Guard the action against known bots.**
@@ -375,7 +377,42 @@ Drivers are `google-v3` (score based, invisible), `google-v2` (checkbox or invis
 @botShieldRecaptcha(['size' => 'invisible'])
 ```
 
-Set `show_terms` to render Google's required notice when you hide the badge.
+### Moving the badge
+
+The invisible v2 widget takes a position, which is the least invasive way to get the badge out of your layout:
+
+```dotenv
+BOT_SHIELD_RECAPTCHA_BADGE=inline
+```
+
+`bottomright` is the default, `bottomleft` the mirror of it, and `inline` drops the badge into the flow of the form where you placed the component so you can position it yourself. Per form:
+
+```blade
+<x-bot-shield::recaptcha size="invisible" badge="inline" />
+```
+
+This reaches the invisible widget only. The v3 widget gives no control over the badge position, and the v2 checkbox has no badge at all, so hiding is the only option there.
+
+### Hiding the badge
+
+The v3 and invisible widgets park a badge in the corner of the page. Google allows you to hide it only when the reCAPTCHA notice is visible instead, so turning one on turns the other on:
+
+```dotenv
+BOT_SHIELD_RECAPTCHA_HIDE_BADGE=true
+```
+
+Or per form, either way round:
+
+```blade
+<x-bot-shield::recaptcha hide-badge="true" />
+<x-bot-shield::recaptcha :hide-badge="false" />
+
+@botShieldRecaptcha(['hideBadge' => true])
+```
+
+The rule is `visibility: hidden !important`, not `display: none`. Taking the badge out of the layout stops the widget from working, and the `!important` is required rather than defensive: Google sets the badge's visibility in an inline style attribute, which no ordinary stylesheet rule can override. If you already hide the badge in your own CSS, that is the same rule you need, and you can leave this off and use `show_terms` for the notice alone.
+
+Hiding wins over the position: set both and the badge stays hidden. Publish the views with `--tag=bot-shield-views` to reword the notice.
 
 Every verification is logged and recorded with its score, pass or fail. That is what makes the threshold reviewable, see `bot-shield:scores` below.
 
@@ -535,7 +572,9 @@ Two features read as on but do nothing until you act: exception hardening needs 
 | Submission rate limiting | on | `#[RateLimitsSubmissions]` on an action | `BOT_SHIELD_RATE_LIMIT_ENABLED` |
 | reCAPTCHA | on, inert without keys | the keys, and the blade component | `BOT_SHIELD_RECAPTCHA_ENABLED` |
 | Accept submissions during a captcha outage | **off** | | `BOT_SHIELD_RECAPTCHA_FAIL_OPEN` |
-| Google terms notice | **off** | | `BOT_SHIELD_RECAPTCHA_SHOW_TERMS` |
+| Move the reCAPTCHA badge | on, bottom right | the invisible v2 widget | `BOT_SHIELD_RECAPTCHA_BADGE` |
+| Hide the reCAPTCHA badge | **off** | | `BOT_SHIELD_RECAPTCHA_HIDE_BADGE` |
+| Google terms notice | **off**, forced on by hiding the badge | | `BOT_SHIELD_RECAPTCHA_SHOW_TERMS` |
 | Honeypot | on | `spatie/laravel-honeypot`, and the blade component | `BOT_SHIELD_HONEYPOT_ENABLED` |
 | Honeypot config driven from this package | on | | `BOT_SHIELD_HONEYPOT_MANAGE_CONFIG` |
 | Probe path firewall | on | the `BlockProbePaths` middleware registered | `BOT_SHIELD_PROBE_PATHS_ENABLED` |
@@ -588,6 +627,9 @@ Full documentation lives in the published `config/bot-shield.php`. The top-level
 | `captcha.fail_open` | `false` | Accept submissions when the provider is unreachable. |
 | `captcha.log` | `true` | Log every verification with its score. |
 | `captcha.log_channel` | app default | Channel the above writes to. |
+| `captcha.badge` | `bottomright` | Badge position on the invisible widget, or `inline`. |
+| `captcha.hide_badge` | `false` | Hide the corner badge and show the notice instead. |
+| `captcha.show_terms` | `false` | Render the notice on its own. |
 | `exceptions.enabled` | `true` | Whether exception hardening is active. |
 | `exceptions.paths` | `livewire/*` | Paths the hardening applies to. |
 | `exceptions.rules` | Livewire set | Exception matchers, extensible per site. |

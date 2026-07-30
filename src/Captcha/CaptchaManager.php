@@ -125,9 +125,22 @@ final class CaptchaManager
         return $this->driverName() === self::GOOGLE_V3;
     }
 
+    /**
+     * Hiding the badge without the notice breaks Google's terms, so asking for
+     * one turns on the other.
+     */
     public function showsTerms(): bool
     {
+        if ($this->hidesBadge()) {
+            return true;
+        }
+
         return $this->truthy('bot-shield.captcha.show_terms');
+    }
+
+    public function hidesBadge(): bool
+    {
+        return $this->truthy('bot-shield.captcha.hide_badge');
     }
 
     private function thresholdFor(Request $request): ?float

@@ -10,6 +10,10 @@
     @if($property) wire:model="{{ $property }}" @endif
 >
 
+@if($hideBadge)
+    @include('bot-shield::recaptcha.hide-badge')
+@endif
+
 <script src="{{ $scriptUrl }}" async defer></script>
 
 <script>

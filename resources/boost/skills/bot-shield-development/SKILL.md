@@ -160,7 +160,7 @@ BOT_SHIELD_CAPTCHA_DRIVER=google-v3
 BOT_SHIELD_RECAPTCHA_SCORE=0.6
 ```
 
-Drivers are `google-v3`, `google-v2` and `null`. Leaving the keys empty disables the captcha: nothing renders and nothing is verified, so a site without keys is never punished. Setting `captcha.show_terms` renders Google's required notice when the badge is hidden.
+Drivers are `google-v3`, `google-v2` and `null`. Leaving the keys empty disables the captcha: nothing renders and nothing is verified, so a site without keys is never punished. Set `captcha.hide_badge` to hide the corner badge, which also renders Google's required notice because hiding it without the notice breaks their terms; `captcha.show_terms` renders that notice on its own. `captcha.badge` moves the badge instead of hiding it, `bottomright`, `bottomleft` or `inline`, and reaches the invisible v2 widget only. All three can be overridden per tag with `hide-badge` and `badge`.
 
 When the provider is unreachable the submission is refused. Set `captcha.fail_open` to `true` only if losing genuine leads is the worse cost for that site.
 

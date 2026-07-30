@@ -62,6 +62,8 @@ final class CaptchaRenderer
      */
     public function data(array $options = []): array
     {
+        $hideBadge = $this->hideBadge($options);
+
         return [
             'siteKey' => (string) $this->captcha->siteKey(),
             'scriptUrl' => $this->scriptUrl($options),
@@ -71,7 +73,9 @@ final class CaptchaRenderer
             'locale' => $this->option($options, 'locale', 'bot-shield.captcha.locale', ''),
             'action' => $this->stringOption($options, 'action', 'submit'),
             'property' => $this->stringOption($options, 'property', ''),
-            'showTerms' => $this->captcha->showsTerms(),
+            'badge' => $this->option($options, 'badge', 'bot-shield.captcha.badge', 'bottomright'),
+            'hideBadge' => $hideBadge,
+            'showTerms' => $hideBadge || $this->captcha->showsTerms(),
         ];
     }
 
@@ -99,6 +103,23 @@ final class CaptchaRenderer
         $url = 'https://www.google.com/recaptcha/api.js';
 
         return $query === [] ? $url : $url.'?'.http_build_query($query);
+    }
+
+    /**
+     * A tag may hide the badge on a form whose site leaves it visible, so the
+     * option wins over the config either way.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    private function hideBadge(array $options): bool
+    {
+        $value = $options['hideBadge'] ?? $options['hide-badge'] ?? null;
+
+        if ($value === null) {
+            return $this->captcha->hidesBadge();
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
     }
 
     /**

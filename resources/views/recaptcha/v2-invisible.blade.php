@@ -18,6 +18,7 @@
     data-sitekey="{{ $siteKey }}"
     data-theme="{{ $theme }}"
     data-size="invisible"
+    data-badge="{{ $badge }}"
     data-callback="{{ $callback }}"
 ></div>
 
@@ -61,6 +62,10 @@
         challenge();
     })();
 </script>
+
+@if($hideBadge)
+    @include('bot-shield::recaptcha.hide-badge')
+@endif
 
 <script src="{{ $scriptUrl }}" async defer></script>
 

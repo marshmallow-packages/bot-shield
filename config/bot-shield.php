@@ -347,6 +347,20 @@ return [
 
         'locale' => env('BOT_SHIELD_RECAPTCHA_LOCALE'),
 
+        /*
+        | The v3 and invisible widgets park a badge in the corner of the page.
+        | Hiding it is allowed only when the notice below is visible instead, so
+        | "hide_badge" turns "show_terms" on for you. The badge is hidden rather
+        | than removed, because a display of none stops the widget working.
+        |
+        | "badge" moves it instead of hiding it: "bottomright", "bottomleft" or
+        | "inline" to place it in the flow of the form yourself. It reaches the
+        | invisible v2 widget only, since v3 gives no control over the position.
+        */
+        'hide_badge' => env('BOT_SHIELD_RECAPTCHA_HIDE_BADGE', false),
+
+        'badge' => env('BOT_SHIELD_RECAPTCHA_BADGE', 'bottomright'),
+
         'show_terms' => env('BOT_SHIELD_RECAPTCHA_SHOW_TERMS', false),
     ],
 
