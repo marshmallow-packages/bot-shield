@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Translation\Loader;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\ServiceProvider;
 use Marshmallow\BotShield\Hardening\ExceptionHardening;
 use Marshmallow\BotShield\Installation\Installer;
@@ -135,6 +137,46 @@ describe('bot-shield:doctor', function () {
         expect($unscheduled)->toBe($countWorthALook());
 
         $this->artisan('bot-shield:doctor')->expectsOutputToContain('model:prune is scheduled');
+    });
+
+    it('confirms the translations resolve', function () {
+        $this->artisan('bot-shield:doctor')
+            ->expectsOutputToContain('resolving for locale')
+            ->assertFailed();
+    });
+
+    /*
+     * Reproduces an application whose translation loader serves a database
+     * rather than files: every namespaced group comes back empty, trans()
+     * returns the key, and the raw key reaches the visitor. Nothing throws, so
+     * without this check the first report comes from a customer.
+     */
+    it('catches a loader that cannot resolve the package translations', function () {
+        app()->extend('translation.loader', fn (): Loader => new class implements Loader
+        {
+            public function load($locale, $group, $namespace = null): array
+            {
+                return [];
+            }
+
+            public function addNamespace($namespace, $hint): void {}
+
+            public function addJsonPath($path): void {}
+
+            public function namespaces(): array
+            {
+                return [];
+            }
+        });
+
+        app()->forgetInstance('translator');
+        Facade::clearResolvedInstance('translator');
+
+        expect(trans('bot-shield::messages.recaptcha.failed'))->toBe('bot-shield::messages.recaptcha.failed');
+
+        $this->artisan('bot-shield:doctor')
+            ->expectsOutputToContain('does not resolve, so visitors would see raw keys')
+            ->assertFailed();
     });
 
     it('warns that the captcha has no keys', function () {

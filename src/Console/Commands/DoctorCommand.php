@@ -61,6 +61,7 @@ class DoctorCommand extends Command
         $this->checkHoneypot($this->laravel->make(SpamGuard::class));
         $this->checkMonitoring($this->laravel->make(RecordsEvents::class));
         $this->checkLivewire();
+        $this->checkTranslations();
 
         $this->newLine();
 
@@ -281,6 +282,32 @@ class DoctorCommand extends Command
         }
 
         $this->reportPass('Livewire', 'installed');
+    }
+
+    /**
+     * An application whose translations do not come from plain files, a loader
+     * reading a database for instance, can fail to resolve a namespaced package
+     * group entirely. Laravel then returns the key itself, so a visitor who
+     * fails the captcha reads "bot-shield::messages.recaptcha.failed" on the
+     * form. Nothing throws, nothing is logged, and a test asserting the error
+     * field rather than the message still passes, so this is worth a check.
+     */
+    private function checkTranslations(): void
+    {
+        $key = 'bot-shield::messages.recaptcha.failed';
+
+        if (trans($key) !== $key) {
+            $this->reportPass('Translations', 'resolving for locale '.$this->laravel->getLocale());
+
+            return;
+        }
+
+        $this->reportFailure(
+            'Translations',
+            'bot-shield::messages does not resolve, so visitors would see raw keys. '
+            .'A custom translation loader may not read package lang files. Run: php artisan '
+            .'vendor:publish --tag=bot-shield-lang',
+        );
     }
 
     private function reportPass(string $label, string $detail): void
