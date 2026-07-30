@@ -161,6 +161,117 @@ describe('bot-shield:doctor', function () {
     });
 });
 
+describe('bot-shield:install', function () {
+    /*
+     * The base path is redirected to a temporary directory: the Testbench
+     * skeleton ships a real .env.example inside vendor, and appending to that
+     * would be a lasting side effect of running the suite.
+     */
+    beforeEach(function () {
+        /*
+         * The publish target is resolved when the provider boots, so it cannot
+         * be redirected here and the published file has to be cleaned up after.
+         */
+        $this->publishedConfig = config_path('bot-shield.php');
+
+        $this->installDirectory = tempDirectory();
+
+        app()->setBasePath($this->installDirectory);
+
+        expect(app()->basePath())->toBe($this->installDirectory);
+    });
+
+    afterEach(function () {
+        $files = new Filesystem;
+
+        $files->deleteDirectory($this->installDirectory);
+        $files->delete($this->publishedConfig);
+    });
+
+    it('publishes the config', function () {
+        expect((new Filesystem)->exists($this->publishedConfig))->toBeFalse();
+
+        $this->artisan('bot-shield:install')->assertSuccessful();
+
+        expect((new Filesystem)->exists($this->publishedConfig))->toBeTrue();
+    });
+
+    it('explains the manual wiring when there is no bootstrap file', function () {
+        $this->artisan('bot-shield:install')
+            ->expectsOutputToContain('bootstrap/app.php not found')
+            ->assertSuccessful();
+    });
+
+    it('offers the trait as the fallback for a bound handler', function () {
+        $this->artisan('bot-shield:install')
+            ->expectsOutputToContain('HardensAgainstBots')
+            ->assertSuccessful();
+    });
+
+    it('wires a real bootstrap file and adds the env keys', function () {
+        $files = new Filesystem;
+
+        $files->makeDirectory($this->installDirectory.'/bootstrap', 0777, true);
+        $files->put($this->installDirectory.'/bootstrap/app.php', <<<'PHP'
+            <?php
+
+            use Illuminate\Foundation\Configuration\Exceptions;
+
+            return Application::configure(basePath: dirname(__DIR__))
+                ->withExceptions(function (Exceptions $exceptions) {
+                    //
+                })->create();
+            PHP);
+        $files->put($this->installDirectory.'/.env.example', "APP_NAME=Laravel\n");
+
+        $this->artisan('bot-shield:install')
+            ->expectsOutputToContain('wired into bootstrap/app.php')
+            ->assertSuccessful();
+
+        expect($files->get($this->installDirectory.'/bootstrap/app.php'))
+            ->toContain('BotShield::handles($exceptions);')
+            ->and($files->get($this->installDirectory.'/.env.example'))
+            ->toContain('BOT_SHIELD_RECAPTCHA_SITE_KEY=');
+    });
+
+    it('is safe to run twice', function () {
+        $files = new Filesystem;
+
+        $files->makeDirectory($this->installDirectory.'/bootstrap', 0777, true);
+        $files->put($this->installDirectory.'/bootstrap/app.php', <<<'PHP'
+            <?php
+
+            use Illuminate\Foundation\Configuration\Exceptions;
+
+            return Application::configure(basePath: dirname(__DIR__))
+                ->withExceptions(function (Exceptions $exceptions) {
+                    //
+                })->create();
+            PHP);
+        $files->put($this->installDirectory.'/.env.example', "APP_NAME=Laravel\n");
+
+        $this->artisan('bot-shield:install')->assertSuccessful();
+        $this->artisan('bot-shield:install')
+            ->expectsOutputToContain('already wired')
+            ->assertSuccessful();
+
+        $contents = $files->get($this->installDirectory.'/bootstrap/app.php');
+
+        expect(substr_count($contents, 'BotShield::handles'))->toBe(1)
+            ->and(substr_count($files->get($this->installDirectory.'/.env.example'), 'BOT_SHIELD_ENABLED='))->toBe(1);
+    });
+
+    it('reports when there is nothing left to add to the env example', function () {
+        (new Filesystem)->put($this->installDirectory.'/.env.example', "APP_NAME=Laravel\n");
+
+        $this->artisan('bot-shield:install')->assertSuccessful();
+
+        $this->artisan('bot-shield:install')
+            ->expectsOutputToContain('nothing to add')
+            ->assertSuccessful();
+    });
+});
+
 describe('the installer', function () {
     it('wires handles() into a bootstrap file', function () {
         $directory = tempDirectory();

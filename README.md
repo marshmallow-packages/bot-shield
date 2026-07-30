@@ -355,6 +355,50 @@ To take the package out of the way entirely for tests that are about something e
 BotShield::fake()->withoutProtection();
 ```
 
+## Extending
+
+Ask whether the current request looks like a bot anywhere in your own code. Agent rules are applied before the detector, so this answers with the same verdict the rest of the package uses:
+
+```php
+use Marshmallow\BotShield\Facades\BotShield;
+
+if (BotShield::isBot()) {
+    // Skip the expensive thing, or the analytics hit.
+}
+
+BotShield::isBot($request);      // or pass a specific request
+BotShield::detector();           // the resolved detector, rules included
+```
+
+Both moving parts are swappable by naming your class in config. A detector implements `Marshmallow\BotShield\Contracts\BotDetector`:
+
+```php
+use Illuminate\Http\Request;
+use Marshmallow\BotShield\Contracts\BotDetector;
+
+class IpRangeDetector implements BotDetector
+{
+    public function isBot(Request $request): bool
+    {
+        return YourIpRanges::contains($request->ip());
+    }
+}
+```
+
+```php
+'detector' => \App\BotShield\IpRangeDetector::class,
+```
+
+A captcha driver implements `Marshmallow\BotShield\Contracts\CaptchaDriver` and returns a `CaptchaVerdict`, which is how a provider other than reCAPTCHA (Cloudflare Turnstile, for instance) can be added without touching the rest of the package:
+
+```php
+'captcha' => [
+    'driver' => \App\BotShield\TurnstileDriver::class,
+],
+```
+
+Your class is resolved from the container, so it can take constructor dependencies. Both are validated at resolve time and report a clear error through `bot-shield:doctor` if they do not implement the contract.
+
 ## Configuration
 
 Full documentation lives in the published `config/bot-shield.php`. The top-level keys:
