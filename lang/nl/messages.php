@@ -10,8 +10,8 @@ return [
 
     'recaptcha' => [
         'passed' => 'Verificatie geslaagd.',
-        'missing' => 'Rond de verificatie af voordat je verstuurt.',
-        'failed' => 'Verificatie mislukt. Probeer het opnieuw.',
+        'missing' => 'We konden niet verifiëren dat je geen robot bent. Probeer het opnieuw.',
+        'failed' => 'We konden niet verifiëren dat je geen robot bent. Probeer het opnieuw.',
         'unavailable' => 'We konden je inzending nu niet verifiëren. Probeer het over een moment opnieuw.',
         'terms' => 'Deze site wordt beschermd door reCAPTCHA. Het Google :privacy en de :terms zijn van toepassing.',
         'privacy' => 'privacybeleid',

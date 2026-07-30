@@ -30,21 +30,37 @@ it('fails validation with a translated message when the score is too low', funct
 
     expect($validator->fails())->toBeTrue()
         ->and($validator->errors()->first('g-recaptcha-response'))
-        ->toBe('Verification failed. Please try again.');
+        ->toBe('We could not verify that you are not a robot. Please try again.');
 });
 
-it('reports a missing token distinctly from a rejected one', function () {
+/*
+ * A missing token and a rejected one read identically on purpose. The message a
+ * caller gets back should not tell it which check it tripped, and under the
+ * default invisible driver there is no verification for a human to "complete"
+ * either.
+ */
+it('does not reveal whether the token was missing or rejected', function () {
     configureCaptcha();
+
+    $messageFor = function (string $token): string {
+        $validator = Validator::make(
+            ['g-recaptcha-response' => $token],
+            ['g-recaptcha-response' => [new Recaptcha]],
+        );
+
+        expect($validator->fails())->toBeTrue();
+
+        return $validator->errors()->first('g-recaptcha-response');
+    };
+
     Http::fake();
+    $missing = $messageFor('');
 
-    $validator = Validator::make(
-        ['g-recaptcha-response' => ''],
-        ['g-recaptcha-response' => [new Recaptcha]],
-    );
+    fakeSiteverify(['success' => false, 'error-codes' => ['invalid-input-response']]);
+    $rejected = $messageFor('token');
 
-    expect($validator->fails())->toBeTrue()
-        ->and($validator->errors()->first('g-recaptcha-response'))
-        ->toBe('Please complete the verification before submitting.');
+    expect($missing)->toBe($rejected)
+        ->and($missing)->not->toContain('complete');
 });
 
 it('passes validation while no captcha is configured', function () {
