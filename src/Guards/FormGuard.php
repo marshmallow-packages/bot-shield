@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Marshmallow\BotShield\Agents\AgentRules;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Enums\AgentAction;
+use Marshmallow\BotShield\Enums\EventType;
+use Marshmallow\BotShield\Monitoring\EventRecorder;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -21,6 +23,7 @@ final class FormGuard
         private readonly Repository $config,
         private readonly AgentRules $rules,
         private readonly BotDetector $detector,
+        private readonly EventRecorder $recorder,
     ) {}
 
     public function shouldBlock(Request $request): bool
@@ -51,11 +54,13 @@ final class FormGuard
         return $this->rules->actionFor($request) === AgentAction::Challenge;
     }
 
-    public function guard(Request $request): void
+    public function guard(Request $request, ?string $form = null): void
     {
         if (! $this->shouldBlock($request)) {
             return;
         }
+
+        $this->recorder->record(EventType::DetectorBlock, 'blocked', ['form' => $form]);
 
         throw new HttpException(
             (int) $this->config->get('bot-shield.forms.status', 403),

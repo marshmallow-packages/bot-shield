@@ -8,7 +8,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Compilers\BladeCompiler;
 use Marshmallow\BotShield\Captcha\CaptchaManager;
 use Marshmallow\BotShield\Captcha\CaptchaRenderer;
-use Marshmallow\BotShield\Console\Commands\BotShieldCommand;
+use Marshmallow\BotShield\Console\Commands\ScoresCommand;
+use Marshmallow\BotShield\Console\Commands\StatsCommand;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Detectors\BotDetectorFactory;
 use Marshmallow\BotShield\Honeypot\SpatieHoneypotConfigurator;
@@ -66,7 +67,8 @@ class BotShieldServiceProvider extends ServiceProvider
         ], ['bot-shield', 'bot-shield-migrations']);
 
         $this->commands([
-            BotShieldCommand::class,
+            ScoresCommand::class,
+            StatsCommand::class,
         ]);
     }
 

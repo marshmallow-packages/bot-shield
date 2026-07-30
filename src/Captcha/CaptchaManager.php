@@ -13,7 +13,9 @@ use Marshmallow\BotShield\Captcha\Drivers\GoogleV3Driver;
 use Marshmallow\BotShield\Captcha\Drivers\NullDriver;
 use Marshmallow\BotShield\Contracts\CaptchaDriver;
 use Marshmallow\BotShield\Enums\CaptchaOutcome;
+use Marshmallow\BotShield\Enums\EventType;
 use Marshmallow\BotShield\Guards\FormGuard;
+use Marshmallow\BotShield\Monitoring\EventRecorder;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -30,6 +32,7 @@ final class CaptchaManager
         private readonly Container $container,
         private readonly FormGuard $guard,
         private readonly LogManager $log,
+        private readonly EventRecorder $recorder,
     ) {}
 
     /**
@@ -146,6 +149,23 @@ final class CaptchaManager
             'ip' => $request->ip(),
             'url' => $request->fullUrl(),
         ], $verdict->context(), $context));
+
+        $this->recorder->record(EventType::Captcha, $verdict->outcome->value, [
+            'score' => $verdict->score,
+            'form' => $this->stringOrNull($context, 'form'),
+            'component' => $this->stringOrNull($context, 'component'),
+            'action' => $this->stringOrNull($context, 'action'),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function stringOrNull(array $context, string $key): ?string
+    {
+        $value = $context[$key] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     private function channel(): LoggerInterface

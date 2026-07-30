@@ -11,6 +11,8 @@ use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Marshmallow\BotShield\Contracts\BotDetector;
+use Marshmallow\BotShield\Enums\EventType;
+use Marshmallow\BotShield\Monitoring\EventRecorder;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -26,6 +28,7 @@ final class ExceptionHardening
         private readonly Container $container,
         private readonly ExceptionMatcher $matcher,
         private readonly BotDetector $detector,
+        private readonly EventRecorder $recorder,
     ) {}
 
     public function register(Exceptions|Handler $exceptions): void
@@ -57,7 +60,13 @@ final class ExceptionHardening
             return true;
         }
 
-        return $this->isBotInducedNoise($exception, $this->currentRequest());
+        if (! $this->isBotInducedNoise($exception, $this->currentRequest())) {
+            return false;
+        }
+
+        $this->recorder->record(EventType::SuppressedException, $exception::class);
+
+        return true;
     }
 
     public function isBotInducedNoise(Throwable $exception, ?Request $request): bool

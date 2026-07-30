@@ -9,6 +9,8 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Marshmallow\BotShield\Concerns\ProtectsAgainstSpam;
+use Marshmallow\BotShield\Enums\EventType;
+use Marshmallow\BotShield\Monitoring\EventRecorder;
 use ReflectionClass;
 use ReflectionProperty;
 use RuntimeException;
@@ -30,6 +32,7 @@ final class SpamGuard
         private readonly Repository $config,
         private readonly Container $container,
         private readonly Dispatcher $events,
+        private readonly EventRecorder $recorder,
     ) {}
 
     public function enabled(): bool
@@ -95,6 +98,10 @@ final class SpamGuard
             $request = $this->container->make(Request::class);
 
             $this->events->dispatch(new SpamDetectedEvent($request));
+
+            $this->recorder->record(EventType::Honeypot, 'tripped', [
+                'component' => $component::class,
+            ]);
 
             throw new HttpException(
                 (int) $this->config->get('bot-shield.honeypot.status', 403),

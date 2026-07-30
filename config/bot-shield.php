@@ -129,6 +129,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Records one row per notable event in bot_shield_events, which is what makes
+    | "is 0.6 too strict for this audience" answerable from real traffic. Rows
+    | are pruned by Laravel's model:prune command, so schedule it.
+    |
+    | Recording is best effort: it runs inside form submissions and inside the
+    | exception handler, so a missing table never becomes an outage. The
+    | structured log channel remains the durable record either way.
+    |
+    | "hash_ips" stores a SHA-256 of the address instead of the address itself.
+    | Grouping and counting still work, so repeat offenders are still visible,
+    | but you lose the ability to read an address off and act on it. Consider it
+    | if storing visitor IPs for 30 days is more than your privacy notice covers.
+    |
+    */
+
+    'monitoring' => [
+
+        'enabled' => env('BOT_SHIELD_MONITORING_ENABLED', true),
+
+        'hash_ips' => env('BOT_SHIELD_MONITORING_HASH_IPS', false),
+
+        'retention_days' => env('BOT_SHIELD_MONITORING_RETENTION_DAYS', 30),
+
+        'connection' => env('BOT_SHIELD_MONITORING_CONNECTION'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Honeypot
     |--------------------------------------------------------------------------
     |
