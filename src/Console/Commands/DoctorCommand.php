@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Marshmallow\BotShield\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Schema;
 use Jaybizzle\CrawlerDetect\CrawlerDetect;
 use Livewire\Livewire;
@@ -236,7 +237,39 @@ class DoctorCommand extends Command
 
         $this->reportPass('Monitoring', 'recording, '.(string) config('bot-shield.monitoring.retention_days').' day retention');
 
-        $this->reportWarning('Pruning', 'schedule Laravel\'s model:prune command, or the events table grows forever');
+        $this->checkPruning();
+    }
+
+    /**
+     * Pruning can also be scheduled from a closure calling model:prune, which is
+     * undetectable from here, so a miss is reported as a reminder rather than a
+     * warning. A check that cannot tell configured from unconfigured should not
+     * be counted against the site.
+     */
+    private function checkPruning(): void
+    {
+        if ($this->prunesScheduled()) {
+            $this->reportPass('Pruning', 'model:prune is scheduled');
+
+            return;
+        }
+
+        $this->reportDetail('Pruning', 'no scheduled model:prune found, schedule it or the events table grows forever');
+    }
+
+    private function prunesScheduled(): bool
+    {
+        $schedule = $this->laravel->make(Schedule::class);
+
+        foreach ($schedule->events() as $event) {
+            $summary = $event->command ?? $event->getSummaryForDisplay();
+
+            if (str_contains($summary, 'model:prune')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function checkLivewire(): void
