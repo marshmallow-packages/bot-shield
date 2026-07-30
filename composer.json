@@ -7,7 +7,11 @@
         "marshmallow",
         "bot-shield"
     ],
-    "homepage": "https://github.com/marshmallow/bot-shield",
+    "homepage": "https://github.com/marshmallow-packages/bot-shield",
+    "support": {
+        "issues": "https://github.com/marshmallow-packages/bot-shield/issues",
+        "source": "https://github.com/marshmallow-packages/bot-shield"
+    },
     "license": "MIT",
     "authors": [
         {
