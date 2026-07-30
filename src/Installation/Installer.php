@@ -25,12 +25,22 @@ final class Installer
      */
     public const array ENV_KEYS = [
         'BOT_SHIELD_ENABLED' => 'true',
+        'BOT_SHIELD_RECAPTCHA_ENABLED' => 'true',
         'BOT_SHIELD_RECAPTCHA_SITE_KEY' => '',
         'BOT_SHIELD_RECAPTCHA_SECRET_KEY' => '',
         'BOT_SHIELD_RECAPTCHA_SCORE' => '0.6',
     ];
 
-    private const string ANCHOR = '->withExceptions(function (Exceptions $exceptions) {';
+    /**
+     * The opening line of the application's withExceptions() closure.
+     *
+     * Deliberately not a literal string: a return type on the closure is
+     * required by most style guides, the parameter can be named anything, and
+     * the class may be imported or written out in full. Matching the exact
+     * default skeleton spelling meant the installer failed on any file written
+     * to a standard, which is most of them.
+     */
+    private const string ANCHOR_PATTERN = '/^(?<indent>[ \t]*)->withExceptions\(\s*(?:static\s+)?function\s*\(\s*(?:\\\\?[A-Za-z_\x80-\xff][\w\x80-\xff]*(?:\\\\[A-Za-z_\x80-\xff][\w\x80-\xff]*)*\\\\)?Exceptions\s+\$(?<parameter>\w+)\s*\)\s*(?::\s*void\s*)?\{/m';
 
     private const string IMPORT = 'use Marshmallow\BotShield\Facades\BotShield;';
 
@@ -53,14 +63,24 @@ final class Installer
             return self::ALREADY_WIRED;
         }
 
-        if (! str_contains($contents, self::ANCHOR)) {
+        if (preg_match(self::ANCHOR_PATTERN, $contents, $matches, PREG_OFFSET_CAPTURE) !== 1) {
             return self::NO_ANCHOR;
         }
 
-        $contents = str_replace(
-            self::ANCHOR,
-            self::ANCHOR.PHP_EOL.'        BotShield::handles($exceptions);',
+        /*
+         * Inserted immediately after the opening brace rather than anywhere
+         * else in the closure, so an existing body is never rewritten or
+         * reordered. The call is added, nothing is taken away.
+         */
+        [$anchor, $offset] = $matches[0];
+        [$indent] = $matches['indent'];
+        [$parameter] = $matches['parameter'];
+
+        $contents = substr_replace(
             $contents,
+            $anchor.PHP_EOL.$indent.'    BotShield::handles($'.$parameter.');',
+            $offset,
+            strlen($anchor),
         );
 
         $this->files->put($path, $this->ensureImport($contents));

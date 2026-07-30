@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 use Marshmallow\BotShield\Hardening\ExceptionHardening;
 use Marshmallow\BotShield\Installation\Installer;
@@ -102,6 +104,37 @@ describe('bot-shield:doctor', function () {
         $this->artisan('bot-shield:doctor')
             ->expectsOutputToContain('wired')
             ->assertSuccessful();
+    });
+
+    /*
+     * A warning that fires whether or not pruning is scheduled is a permanent
+     * false positive, and it inflates the "worth a look" count that people use
+     * to decide whether to read the rest.
+     */
+    it('recognises a scheduled model:prune', function () {
+        app(Schedule::class)->command('model:prune')->daily();
+
+        $this->artisan('bot-shield:doctor')
+            ->expectsOutputToContain('model:prune is scheduled')
+            ->assertFailed();
+    });
+
+    it('reminds without counting it against the site when no pruning is scheduled', function () {
+        $countWorthALook = function (): string {
+            Artisan::call('bot-shield:doctor');
+
+            preg_match('/(\d+) thing\(s\) worth a look/', Artisan::output(), $matches);
+
+            return $matches[1] ?? '0';
+        };
+
+        $unscheduled = $countWorthALook();
+
+        app(Schedule::class)->command('model:prune')->daily();
+
+        expect($unscheduled)->toBe($countWorthALook());
+
+        $this->artisan('bot-shield:doctor')->expectsOutputToContain('model:prune is scheduled');
     });
 
     it('warns that the captcha has no keys', function () {
@@ -308,6 +341,71 @@ describe('the installer', function () {
         (new Filesystem)->deleteDirectory($directory);
     });
 
+    /*
+     * The closure spelling that matters most is the one with a return type: it
+     * is what every style guide requiring return types produces, and matching
+     * only the default skeleton spelling meant the installer failed on the
+     * majority of real applications.
+     */
+    it('wires a closure however it is written', function (string $closure, string $expected) {
+        $directory = tempDirectory();
+        $path = $directory.'/app.php';
+
+        (new Filesystem)->put($path, <<<PHP
+            <?php
+
+            use Illuminate\Foundation\Configuration\Exceptions;
+
+            return Application::configure(basePath: dirname(__DIR__))
+                {$closure}
+                    //
+                })->create();
+            PHP);
+
+        expect(app(Installer::class)->wireExceptionHandler($path))->toBe(Installer::WIRED)
+            ->and((new Filesystem)->get($path))->toContain($expected);
+
+        (new Filesystem)->deleteDirectory($directory);
+    })->with([
+        'return type' => ['->withExceptions(function (Exceptions $exceptions): void {', 'BotShield::handles($exceptions);'],
+        'no return type' => ['->withExceptions(function (Exceptions $exceptions) {', 'BotShield::handles($exceptions);'],
+        'static closure' => ['->withExceptions(static function (Exceptions $exceptions): void {', 'BotShield::handles($exceptions);'],
+        'renamed parameter' => ['->withExceptions(function (Exceptions $config): void {', 'BotShield::handles($config);'],
+        'qualified class' => ['->withExceptions(function (\Illuminate\Foundation\Configuration\Exceptions $exceptions): void {', 'BotShield::handles($exceptions);'],
+        'extra whitespace' => ['->withExceptions( function ( Exceptions  $exceptions ) : void {', 'BotShield::handles($exceptions);'],
+    ]);
+
+    it('adds the call without disturbing an existing closure body', function () {
+        $directory = tempDirectory();
+        $path = $directory.'/app.php';
+
+        (new Filesystem)->put($path, <<<'PHP'
+            <?php
+
+            use Illuminate\Foundation\Configuration\Exceptions;
+
+            return Application::configure(basePath: dirname(__DIR__))
+                ->withExceptions(function (Exceptions $exceptions): void {
+                    Integration::handles($exceptions);
+
+                    $exceptions->dontReport(SomethingElse::class);
+                })->create();
+            PHP);
+
+        $contents = (new Filesystem)->get($path);
+
+        expect(app(Installer::class)->wireExceptionHandler($path))->toBe(Installer::WIRED);
+
+        $wired = (new Filesystem)->get($path);
+
+        expect($wired)->toContain('Integration::handles($exceptions);')
+            ->and($wired)->toContain('$exceptions->dontReport(SomethingElse::class);')
+            ->and($wired)->toContain('        BotShield::handles($exceptions);')
+            ->and(strlen($wired))->toBeGreaterThan(strlen($contents));
+
+        (new Filesystem)->deleteDirectory($directory);
+    });
+
     it('leaves an already wired file alone', function () {
         $directory = tempDirectory();
         $path = $directory.'/app.php';
@@ -378,7 +476,8 @@ describe('translations', function () {
         app()->setLocale('nl');
 
         expect(trans('bot-shield::messages.forbidden'))->toBe('Dit verzoek is geblokkeerd.')
-            ->and(trans('bot-shield::messages.recaptcha.failed'))->toBe('Verificatie mislukt. Probeer het opnieuw.');
+            ->and(trans('bot-shield::messages.recaptcha.failed'))
+            ->toBe('We konden niet verifiëren dat je geen robot bent. Probeer het opnieuw.');
     });
 
     it('covers every english key in dutch', function () {
