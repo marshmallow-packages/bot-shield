@@ -444,12 +444,15 @@ For automated tests, do not disable it. `BotShield::fake()` scripts the answers 
 
 ### When the token is fetched
 
-The v3 and invisible widgets ask Google for a token on page load and refresh it every 100 seconds, because a v3 token expires after two minutes and a form that gets its token at submit time has to wait for the network before it can submit.
+Neither widget waits for the submit button, because asking at submit time means waiting for Google's network round trip before the form can post.
+
+- **v3** asks on page load and refreshes every 100 seconds, since a token expires after two minutes and a form can be open far longer than that.
+- **Invisible v2** asks on page load and once more on the form's first interaction. It has no refresh loop. The second ask exists so a form that took a while to fill in submits a fresh token rather than an expired one.
 
 Two consequences worth knowing if you are replacing a submit-time implementation:
 
-- One `grecaptcha.execute` runs per visitor to a page carrying a form, not per visitor who actually submits. Busy sites should keep an eye on their reCAPTCHA quota.
-- The score describes behaviour up to page load rather than the submit interaction. Scores are not directly comparable with a submit-time setup, so re-read `bot-shield:scores` before reusing an old threshold.
+- At least one `grecaptcha.execute` runs per visitor to a page carrying a form, not per visitor who actually submits, and an interacting visitor on invisible v2 costs two. Busy sites should keep an eye on their reCAPTCHA quota.
+- The v3 score describes behaviour up to page load rather than the submit interaction. Scores are not directly comparable with a submit-time setup, so re-read `bot-shield:scores` before reusing an old threshold.
 
 ### Migrating from a submit-time token
 
@@ -466,12 +469,22 @@ public function submit(?string $token = null): void
 
 Adopting the package's component means:
 
-1. Replace the handler with a plain `<form wire:submit="submit">` and drop the wrapper element that existed only to own the `@submit.prevent`.
+1. Replace the handler with a plain `<form wire:submit="submit">`. The wrapper element that existed only to own the `@submit.prevent` goes, but **what was inside it stays**: the honeypot component usually lives in there, and losing it is silent, since a form with no honeypot still submits perfectly well. Move its contents into the new `<form>` before deleting the tag.
 2. Add `<x-bot-shield::recaptcha property="gRecaptchaResponse" />` and a matching `public string $gRecaptchaResponse = '';`. The component fetches and refreshes the token itself, so no JavaScript of yours remains.
 3. Delete the `#[On(...)]` listener and the `?string $token` parameter, and put `#[ValidatesRecaptcha]` on the action instead.
 4. Move any test or client-side reference from your own error key to `g-recaptcha-response`, which is the field the rule and the attribute both report against.
 
 Deleting the event listener is worth more than it looks. `dispatchSelf` fires every listener for that event name in the component, so a second listener added later would silently run on submit; after the migration there is no dispatch left to go wrong.
+
+**Before you ship, confirm the package's translations resolve:**
+
+```bash
+php artisan tinker --execute="echo trans('bot-shield::messages.recaptcha.failed');"
+```
+
+If that prints the key back rather than a sentence, your application cannot read the package's lang files, and a visitor who fails the captcha will read `bot-shield::messages.recaptcha.failed` on the form. Nothing throws and nothing is logged, and a test asserting the error field rather than the message text still passes.
+
+This bites hardest on exactly the sites this migration suits. Hand written captcha code usually passes the sentence itself as the translation key, so it renders correctly even when nothing resolves; moving to `bot-shield::messages` is what turns a long standing loader problem into visible garbage. `bot-shield:doctor` checks this for you.
 
 ## Middleware
 
@@ -701,6 +714,10 @@ English and Dutch ship with the package. Publish them to change the wording:
 ```bash
 php artisan vendor:publish --tag="bot-shield-lang"
 ```
+
+Every visitor-facing string the package produces comes from `bot-shield::messages`, so an application that cannot resolve that namespace shows raw keys on live forms rather than failing loudly. That is not hypothetical: a translation loader backed by a database, rather than the file loader Laravel ships, can return nothing for a namespaced package group. Publishing the lang files does not always help either, since the same loader may not read the published copies.
+
+`bot-shield:doctor` reports this under `Translations`, and it is worth checking after install on any site with a custom translation setup.
 
 ## Testing
 

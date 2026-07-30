@@ -127,6 +127,8 @@ public function submit(): void
 
 Use this package's `ProtectsAgainstSpam` rather than spatie's `UsesSpamProtection` when honeypot trips should be recorded; spatie's trait blocks the submission but records no event, so `bot-shield:stats` and `assertHoneypotTripped()` stay empty.
 
+After installing on a site with a custom translation setup, confirm `trans('bot-shield::messages.recaptcha.failed')` returns a sentence rather than the key. A loader that does not read package lang files renders raw keys to visitors without throwing; `bot-shield:doctor` reports it under `Translations`.
+
 Two classes share the name `ValidatesRecaptcha`: the Livewire attribute is `Marshmallow\BotShield\Livewire\ValidatesRecaptcha`, the FormRequest trait is `Marshmallow\BotShield\Concerns\ValidatesRecaptcha`. Check the namespace before debugging an attribute that appears not to run.
 
 ### 4. Protect classic forms

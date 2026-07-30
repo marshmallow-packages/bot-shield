@@ -21,6 +21,7 @@
 
 - `bot-shield:install` now recognises a `withExceptions()` closure written with a return type, a static closure, a renamed parameter or a fully qualified `Exceptions` class. It previously matched one exact spelling and printed manual instructions for every other one.
 - `BotShield::fake()` answers as the driver the application configured, so a v3 site no longer renders v2 markup under the fake. Pass a driver name to override it.
+- `bot-shield:doctor` reports whether `bot-shield::messages` resolves, so an application whose translation loader cannot read package lang files finds out before its visitors read raw keys off a form.
 - `bot-shield:doctor` detects a scheduled `model:prune` instead of always warning that pruning is unscheduled.
 - The captcha `missing` and `failed` messages no longer describe a checkbox the invisible driver never shows, and no longer differ from each other, which told a caller which check it failed.
 
