@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Hardening\ExceptionHardening;
 
-final class BotShield
+class BotShield
 {
     public function __construct(
         private readonly ExceptionHardening $hardening,

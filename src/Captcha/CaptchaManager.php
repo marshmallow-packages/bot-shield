@@ -12,10 +12,10 @@ use Marshmallow\BotShield\Captcha\Drivers\GoogleV2Driver;
 use Marshmallow\BotShield\Captcha\Drivers\GoogleV3Driver;
 use Marshmallow\BotShield\Captcha\Drivers\NullDriver;
 use Marshmallow\BotShield\Contracts\CaptchaDriver;
+use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\CaptchaOutcome;
 use Marshmallow\BotShield\Enums\EventType;
 use Marshmallow\BotShield\Guards\FormGuard;
-use Marshmallow\BotShield\Monitoring\EventRecorder;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -32,7 +32,7 @@ final class CaptchaManager
         private readonly Container $container,
         private readonly FormGuard $guard,
         private readonly LogManager $log,
-        private readonly EventRecorder $recorder,
+        private readonly RecordsEvents $recorder,
     ) {}
 
     /**

@@ -50,6 +50,12 @@ return [
     |   challenge : always forced through the captcha, whatever its score.
     |   block     : refused on guarded form submissions. Page views are
     |               untouched, so search engines keep crawling normally.
+    |   deny      : not welcome at all. Refused on form submissions, listed as
+    |               Disallow by bot-shield:robots, and refused on page views once
+    |               the DenyAgents middleware is registered.
+    |
+    | Search engines default to "block" rather than "deny" on purpose: they must
+    | keep crawling pages, they just have no business submitting a form.
     |
     */
 
@@ -73,17 +79,17 @@ return [
             ['pattern' => 'AhrefsBot', 'action' => 'block'],
             ['pattern' => 'SemrushBot', 'action' => 'block'],
 
-            ['pattern' => 'GPTBot', 'action' => 'block'],
-            ['pattern' => 'OAI-SearchBot', 'action' => 'block'],
-            ['pattern' => 'ChatGPT-User', 'action' => 'block'],
-            ['pattern' => 'ClaudeBot', 'action' => 'block'],
-            ['pattern' => 'Claude-Web', 'action' => 'block'],
-            ['pattern' => 'anthropic-ai', 'action' => 'block'],
-            ['pattern' => 'PerplexityBot', 'action' => 'block'],
-            ['pattern' => 'CCBot', 'action' => 'block'],
-            ['pattern' => 'Bytespider', 'action' => 'block'],
-            ['pattern' => 'Amazonbot', 'action' => 'block'],
-            ['pattern' => 'Meta-ExternalAgent', 'action' => 'block'],
+            ['pattern' => 'GPTBot', 'action' => 'deny'],
+            ['pattern' => 'OAI-SearchBot', 'action' => 'deny'],
+            ['pattern' => 'ChatGPT-User', 'action' => 'deny'],
+            ['pattern' => 'ClaudeBot', 'action' => 'deny'],
+            ['pattern' => 'Claude-Web', 'action' => 'deny'],
+            ['pattern' => 'anthropic-ai', 'action' => 'deny'],
+            ['pattern' => 'PerplexityBot', 'action' => 'deny'],
+            ['pattern' => 'CCBot', 'action' => 'deny'],
+            ['pattern' => 'Bytespider', 'action' => 'deny'],
+            ['pattern' => 'Amazonbot', 'action' => 'deny'],
+            ['pattern' => 'Meta-ExternalAgent', 'action' => 'deny'],
 
             ['pattern' => 'curl/', 'action' => 'block'],
             ['pattern' => 'Wget/', 'action' => 'block'],
@@ -123,6 +129,86 @@ return [
         'enabled' => env('BOT_SHIELD_FORM_GUARD_ENABLED', true),
 
         'use_detector' => env('BOT_SHIELD_FORM_GUARD_USE_DETECTOR', false),
+
+        'status' => 403,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Probe Path Firewall
+    |--------------------------------------------------------------------------
+    |
+    | Scanner paths answered immediately by the BlockProbePaths middleware, which
+    | you register first in the global stack. It returns a response rather than
+    | aborting, so there is no exception to report and no session to start.
+    |
+    */
+
+    'probe_paths' => [
+
+        'enabled' => env('BOT_SHIELD_PROBE_PATHS_ENABLED', true),
+
+        'status' => 404,
+
+        'paths' => [
+            'wp-login.php',
+            'wp-admin',
+            'wp-admin/*',
+            'wp-content/*',
+            'wp-includes/*',
+            'wordpress/*',
+            'xmlrpc.php',
+            '.env',
+            '.env.*',
+            '.git',
+            '.git/*',
+            '.aws/*',
+            'phpinfo.php',
+            'phpmyadmin',
+            'phpmyadmin/*',
+            'pma/*',
+            'vendor/phpunit/*',
+            'config.json',
+            'credentials',
+            '.well-known/security.txt.bak',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Submission Rate Limit
+    |--------------------------------------------------------------------------
+    |
+    | Applied through the #[RateLimitsSubmissions] Livewire attribute or the
+    | SubmissionLimiter service. Counts per address per form, so one noisy client
+    | cannot flood a single form.
+    |
+    */
+
+    'rate_limit' => [
+
+        'enabled' => env('BOT_SHIELD_RATE_LIMIT_ENABLED', true),
+
+        'attempts' => env('BOT_SHIELD_RATE_LIMIT_ATTEMPTS', 5),
+
+        'decay_seconds' => env('BOT_SHIELD_RATE_LIMIT_DECAY', 60),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Crawler Management
+    |--------------------------------------------------------------------------
+    |
+    | bot-shield:robots turns every "deny" agent rule into robots.txt stanzas.
+    | That is the courteous mechanism and most crawlers honour it, so refusing
+    | their page views outright is off by default. Turn it on and register the
+    | DenyAgents middleware for the ones that ignore robots.txt.
+    |
+    */
+
+    'crawlers' => [
+
+        'deny_page_views' => env('BOT_SHIELD_DENY_PAGE_VIEWS', false),
 
         'status' => 403,
     ],

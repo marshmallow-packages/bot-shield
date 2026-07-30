@@ -34,6 +34,13 @@ enum AgentAction: string
      */
     case Block = 'block';
 
+    /**
+     * Not welcome at all. Refused on form submissions, listed as Disallow by
+     * bot-shield:robots, and refused on page views once the DenyAgents
+     * middleware is registered. For crawlers you would rather not host.
+     */
+    case Deny = 'deny';
+
     public static function tryFromValue(mixed $value): ?self
     {
         if (! is_string($value)) {
@@ -46,5 +53,18 @@ enum AgentAction: string
     public function treatsRequestAsBot(): bool
     {
         return $this !== self::Allow;
+    }
+
+    public function refusesFormSubmissions(): bool
+    {
+        return match ($this) {
+            self::Block, self::Deny => true,
+            default => false,
+        };
+    }
+
+    public function refusesPageViews(): bool
+    {
+        return $this === self::Deny;
     }
 }

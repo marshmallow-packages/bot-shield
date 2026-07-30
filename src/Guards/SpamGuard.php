@@ -9,8 +9,8 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Marshmallow\BotShield\Concerns\ProtectsAgainstSpam;
+use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
-use Marshmallow\BotShield\Monitoring\EventRecorder;
 use ReflectionClass;
 use ReflectionProperty;
 use RuntimeException;
@@ -32,7 +32,7 @@ final class SpamGuard
         private readonly Repository $config,
         private readonly Container $container,
         private readonly Dispatcher $events,
-        private readonly EventRecorder $recorder,
+        private readonly RecordsEvents $recorder,
     ) {}
 
     public function enabled(): bool

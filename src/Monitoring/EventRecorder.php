@@ -7,6 +7,7 @@ namespace Marshmallow\BotShield\Monitoring;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Http\Request;
+use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
 use Marshmallow\BotShield\Models\BotShieldEvent;
 use Throwable;
@@ -15,7 +16,7 @@ use Throwable;
  * Writes one row per notable event, so questions like "is 0.6 too strict for
  * this audience" can be answered from real traffic instead of guesswork.
  */
-final class EventRecorder
+final class EventRecorder implements RecordsEvents
 {
     public function __construct(
         private readonly Repository $config,

@@ -11,8 +11,8 @@ use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Marshmallow\BotShield\Contracts\BotDetector;
+use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
-use Marshmallow\BotShield\Monitoring\EventRecorder;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -28,11 +28,25 @@ final class ExceptionHardening
         private readonly Container $container,
         private readonly ExceptionMatcher $matcher,
         private readonly BotDetector $detector,
-        private readonly EventRecorder $recorder,
+        private readonly RecordsEvents $recorder,
     ) {}
+
+    /**
+     * Whether register() has run, which is what bot-shield:doctor reports so a
+     * site that forgot to wire the package can be told so instead of quietly
+     * reporting bot noise forever.
+     */
+    private bool $registered = false;
+
+    public function isRegistered(): bool
+    {
+        return $this->registered;
+    }
 
     public function register(Exceptions|Handler $exceptions): void
     {
+        $this->registered = true;
+
         if (! $this->enabled()) {
             return;
         }

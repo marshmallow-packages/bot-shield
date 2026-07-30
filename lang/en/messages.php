@@ -6,6 +6,7 @@ return [
     'invalid_component_data' => 'Invalid component data.',
     'forbidden' => 'This request was blocked.',
     'spam_detected' => 'This submission was rejected as spam.',
+    'too_many_submissions' => 'Too many submissions. Please wait a moment and try again.',
 
     'recaptcha' => [
         'passed' => 'Verification succeeded.',
