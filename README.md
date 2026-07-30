@@ -33,6 +33,8 @@ Run the installer. It publishes the config, wires the exception handler into `bo
 php artisan bot-shield:install
 ```
 
+The edit to `bootstrap/app.php` is purely additive: it inserts one `BotShield::handles($exceptions)` call directly after the opening brace of your `withExceptions()` closure and leaves everything already in there untouched, whatever order it is in. If it cannot find the closure it changes nothing and prints the line for you to paste.
+
 If you use the monitoring table, publish and run the migration:
 
 ```bash
@@ -274,6 +276,8 @@ class ContactForm extends Component
 }
 ```
 
+> Two different classes are called `ValidatesRecaptcha`. The Livewire **attribute** is `Marshmallow\BotShield\Livewire\ValidatesRecaptcha`, used as `#[ValidatesRecaptcha]` above. The FormRequest **trait** is `Marshmallow\BotShield\Concerns\ValidatesRecaptcha`, shown under [Classic forms](#classic-forms). Import the wrong one and the attribute fails in a way that does not mention the import, so check the namespace first if it misbehaves.
+
 In the component's view:
 
 ```blade
@@ -311,6 +315,8 @@ class ContactForm extends Component
     }
 }
 ```
+
+> Use this package's `ProtectsAgainstSpam` rather than spatie's own `UsesSpamProtection` if you want honeypot trips recorded. Both stop the submission, but only this one records the event, so keeping spatie's trait means `bot-shield:stats` reports `Honeypot trips: 0` forever and `assertHoneypotTripped()` can never pass. Keeping the wiring you already have is otherwise a perfectly reasonable minimal adoption.
 
 ### Classic forms
 
@@ -436,6 +442,37 @@ Or leave the captcha enabled and drop it to the null driver with `BOT_SHIELD_CAP
 
 For automated tests, do not disable it. `BotShield::fake()` scripts the answers without calling Google, see [Testing your own application](#testing-your-own-application).
 
+### When the token is fetched
+
+The v3 and invisible widgets ask Google for a token on page load and refresh it every 100 seconds, because a v3 token expires after two minutes and a form that gets its token at submit time has to wait for the network before it can submit.
+
+Two consequences worth knowing if you are replacing a submit-time implementation:
+
+- One `grecaptcha.execute` runs per visitor to a page carrying a form, not per visitor who actually submits. Busy sites should keep an eye on their reCAPTCHA quota.
+- The score describes behaviour up to page load rather than the submit interaction. Scores are not directly comparable with a submit-time setup, so re-read `bot-shield:scores` before reusing an old threshold.
+
+### Migrating from a submit-time token
+
+If your form fetches the token in a submit handler and hands it to Livewire itself, it probably looks like this:
+
+```blade
+<form @submit.prevent="grecaptcha.execute(...).then(token => $wire.dispatchSelf('formSubmitted', { token }))">
+```
+
+```php
+#[On('formSubmitted')]
+public function submit(?string $token = null): void
+```
+
+Adopting the package's component means:
+
+1. Replace the handler with a plain `<form wire:submit="submit">` and drop the wrapper element that existed only to own the `@submit.prevent`.
+2. Add `<x-bot-shield::recaptcha property="gRecaptchaResponse" />` and a matching `public string $gRecaptchaResponse = '';`. The component fetches and refreshes the token itself, so no JavaScript of yours remains.
+3. Delete the `#[On(...)]` listener and the `?string $token` parameter, and put `#[ValidatesRecaptcha]` on the action instead.
+4. Move any test or client-side reference from your own error key to `g-recaptcha-response`, which is the field the rule and the attribute both report against.
+
+Deleting the event listener is worth more than it looks. `dispatchSelf` fires every listener for that event name in the component, so a second listener added later would silently run on submit; after the migration there is no dispatch left to go wrong.
+
 ## Middleware
 
 Neither is registered for you. The probe firewall belongs first in the global stack; refusing crawler page views is a decision per site.
@@ -505,6 +542,12 @@ $shield->assertRateLimited();
 
 Captcha answers are scripted, so nothing reaches Google, and events are kept in memory rather than the database. A blank token still fails under the fake, because that bypass is real behaviour rather than a stub detail.
 
+The fake answers as whichever driver your application configures, so the widget your tests render is the widget you ship. Pass a driver name to override that when a test is specifically about another one:
+
+```php
+BotShield::fake('google-v2');
+```
+
 To take the package out of the way entirely for tests that are about something else:
 
 ```php
@@ -572,6 +615,7 @@ Two features read as on but do nothing until you act: exception hardening needs 
 | Submission rate limiting | on | `#[RateLimitsSubmissions]` on an action | `BOT_SHIELD_RATE_LIMIT_ENABLED` |
 | reCAPTCHA | on, inert without keys | the keys, and the blade component | `BOT_SHIELD_RECAPTCHA_ENABLED` |
 | Accept submissions during a captcha outage | **off** | | `BOT_SHIELD_RECAPTCHA_FAIL_OPEN` |
+| Report a captcha outage to Sentry | **off** | | `BOT_SHIELD_RECAPTCHA_REPORT_OUTAGES` |
 | Move the reCAPTCHA badge | on, bottom right | the invisible v2 widget | `BOT_SHIELD_RECAPTCHA_BADGE` |
 | Hide the reCAPTCHA badge | **off** | | `BOT_SHIELD_RECAPTCHA_HIDE_BADGE` |
 | Google terms notice | **off**, forced on by hiding the badge | | `BOT_SHIELD_RECAPTCHA_SHOW_TERMS` |
@@ -625,6 +669,7 @@ Full documentation lives in the published `config/bot-shield.php`. The top-level
 | `captcha.score` | `0.6` | Minimum v3 score to accept. |
 | `captcha.score_challenge` | `0.9` | Stricter threshold for `challenge` agents. |
 | `captcha.fail_open` | `false` | Accept submissions when the provider is unreachable. |
+| `captcha.report_outages` | `false` | Report an unreachable provider to your error tracker. |
 | `captcha.log` | `true` | Log every verification with its score. |
 | `captcha.log_channel` | app default | Channel the above writes to. |
 | `captcha.badge` | `bottomright` | Badge position on the invisible widget, or `inline`. |

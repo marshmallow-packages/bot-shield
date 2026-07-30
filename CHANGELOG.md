@@ -14,7 +14,15 @@
 - Monitoring: a `bot_shield_events` table recording every captcha score, honeypot trip, blocked submission, suppressed exception and probe path hit, with `bot-shield:stats` and `bot-shield:scores`.
 - Commands `bot-shield:install`, `bot-shield:doctor`, `bot-shield:stats`, `bot-shield:scores` and `bot-shield:robots`.
 - `BotShield::fake()` for testing consuming applications, with scripted captcha answers and in-memory events.
+- `captcha.report_outages` reports an unreachable provider to the error tracker, off by default.
 - English and Dutch translations.
+
+### Fixed
+
+- `bot-shield:install` now recognises a `withExceptions()` closure written with a return type, a static closure, a renamed parameter or a fully qualified `Exceptions` class. It previously matched one exact spelling and printed manual instructions for every other one.
+- `BotShield::fake()` answers as the driver the application configured, so a v3 site no longer renders v2 markup under the fake. Pass a driver name to override it.
+- `bot-shield:doctor` detects a scheduled `model:prune` instead of always warning that pruning is unscheduled.
+- The captcha `missing` and `failed` messages no longer describe a checkbox the invisible driver never shows, and no longer differ from each other, which told a caller which check it failed.
 
 ## [v0.1.0](https://github.com/marshmallow-packages/bot-shield/compare/...v0.1.0) - 202x-xx-xx
 

@@ -125,6 +125,10 @@ public function submit(): void
 
 `Marshmallow\BotShield\Concerns\ProtectsAgainstBots` provides `protectAgainstBots()` as the equivalent of `#[BlocksBots]` for components that cannot use attributes.
 
+Use this package's `ProtectsAgainstSpam` rather than spatie's `UsesSpamProtection` when honeypot trips should be recorded; spatie's trait blocks the submission but records no event, so `bot-shield:stats` and `assertHoneypotTripped()` stay empty.
+
+Two classes share the name `ValidatesRecaptcha`: the Livewire attribute is `Marshmallow\BotShield\Livewire\ValidatesRecaptcha`, the FormRequest trait is `Marshmallow\BotShield\Concerns\ValidatesRecaptcha`. Check the namespace before debugging an attribute that appears not to run.
+
 ### 4. Protect classic forms
 
 ```blade
@@ -160,7 +164,7 @@ BOT_SHIELD_CAPTCHA_DRIVER=google-v3
 BOT_SHIELD_RECAPTCHA_SCORE=0.6
 ```
 
-Drivers are `google-v3`, `google-v2` and `null`. Leaving the keys empty disables the captcha: nothing renders and nothing is verified, so a site without keys is never punished. Set `captcha.hide_badge` to hide the corner badge, which also renders Google's required notice because hiding it without the notice breaks their terms; `captcha.show_terms` renders that notice on its own. `captcha.badge` moves the badge instead of hiding it, `bottomright`, `bottomleft` or `inline`, and reaches the invisible v2 widget only. All three can be overridden per tag with `hide-badge` and `badge`.
+Drivers are `google-v3`, `google-v2` and `null`. Leaving the keys empty disables the captcha: nothing renders and nothing is verified, so a site without keys is never punished. `captcha.report_outages` reports an unreachable provider to the error tracker, off by default because an outage means one report per attempt. Set `captcha.hide_badge` to hide the corner badge, which also renders Google's required notice because hiding it without the notice breaks their terms; `captcha.show_terms` renders that notice on its own. `captcha.badge` moves the badge instead of hiding it, `bottomright`, `bottomleft` or `inline`, and reaches the invisible v2 widget only. All three can be overridden per tag with `hide-badge` and `badge`.
 
 When the provider is unreachable the submission is refused. Set `captcha.fail_open` to `true` only if losing genuine leads is the worse cost for that site.
 
@@ -240,6 +244,8 @@ $shield->assertBlocked('contact');
 Available on the fake: `captchaPasses()`, `captchaFails()`, `captchaScores()`, `captchaUnavailable()`, `withoutProtection()`, `recorded()`, and the assertions `assertBlocked()`, `assertNotBlocked()`, `assertChallenged()`, `assertNotChallenged()`, `assertCaptchaPassed()`, `assertCaptchaFailed()`, `assertHoneypotTripped()`, `assertRateLimited()`, `assertNothingRecorded()`.
 
 Nothing reaches Google and events are kept in memory, so no table is needed. A blank token still fails under the fake, because that bypass is real behaviour. Use `BotShield::fake()->withoutProtection()` to take the package out of the way in tests about something else.
+
+The fake answers as whichever driver the application configures, so rendered markup matches what the site ships; `BotShield::fake('google-v2')` overrides that when the test is about another driver.
 
 ## Rules, References, and Templates
 
