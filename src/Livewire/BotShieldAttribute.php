@@ -28,9 +28,14 @@ abstract class BotShieldAttribute extends LivewireAttribute
         return is_string($this->subName) ? $this->subName : '';
     }
 
+    /**
+     * Livewire's getName() has no declared return type and has been observed
+     * returning an int on Livewire 3.5, so the value is cast rather than
+     * trusted.
+     */
     protected function componentName(): string
     {
-        return $this->component->getName();
+        return (string) $this->component->getName();
     }
 
     protected function currentRequest(): Request

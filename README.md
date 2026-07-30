@@ -64,6 +64,105 @@ php artisan vendor:publish --tag="bot-shield-lang"
 php artisan vendor:publish --tag="bot-shield"        # everything at once
 ```
 
+## Getting started
+
+A walkthrough from an empty install to one protected form. Each step says how to tell it worked.
+
+**1. Install and wire.**
+
+```bash
+composer require marshmallow/bot-shield
+php artisan bot-shield:install
+```
+
+Check: `php artisan bot-shield:doctor` reports `Exception hardening ... wired`. If it says `not wired`, the installer could not edit `bootstrap/app.php`; add the `withExceptions()` call from the next section by hand.
+
+**2. Confirm the exception noise is handled.**
+
+Nothing else is needed for this part. Bot-induced Livewire exceptions stop reaching your error tracker from now on, and matched exceptions answer a client error instead of a 500. If that is all you wanted, stop here and turn off the rest:
+
+```dotenv
+BOT_SHIELD_HONEYPOT_ENABLED=false
+BOT_SHIELD_RECAPTCHA_ENABLED=false
+BOT_SHIELD_MONITORING_ENABLED=false
+BOT_SHIELD_RATE_LIMIT_ENABLED=false
+BOT_SHIELD_PROBE_PATHS_ENABLED=false
+```
+
+**3. Turn on monitoring, so the later steps are measurable.**
+
+```bash
+php artisan vendor:publish --tag="bot-shield-migrations"
+php artisan migrate
+```
+
+Then schedule pruning, or the table grows forever:
+
+```php
+Schedule::command('model:prune', [
+    '--model' => [Marshmallow\BotShield\Models\BotShieldEvent::class],
+])->daily();
+```
+
+Check: `bot-shield:doctor` reports `Monitoring ... recording`.
+
+**4. Add the honeypot to one form.**
+
+```bash
+composer require spatie/laravel-honeypot
+```
+
+In the form's view:
+
+```blade
+<x-bot-shield::honeypot />
+```
+
+For a Livewire component, add `livewire-model="honeypotData"` to that tag, give the component a `public HoneypotData $honeypotData;`, initialise it in `mount()`, use the `ProtectsAgainstSpam` trait, and call `$this->protectAgainstSpam()` at the top of the submit action. Both variants are shown under [Protecting forms](#protecting-forms).
+
+Check: view the page source and you should see a hidden `div` with two inputs. If nothing renders, the honeypot is disabled or spatie is missing, and `bot-shield:doctor` says which.
+
+**5. Add reCAPTCHA to the same form.**
+
+Get keys from the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin), then:
+
+```dotenv
+BOT_SHIELD_RECAPTCHA_SITE_KEY=your-site-key
+BOT_SHIELD_RECAPTCHA_SECRET_KEY=your-secret-key
+```
+
+In the view:
+
+```blade
+<x-bot-shield::recaptcha />
+```
+
+Then verify on submit. For Livewire, add `#[ValidatesRecaptcha]` to the action and `property="gRecaptchaResponse"` to the tag. For a classic form, add the rule to your validation, which the `ValidatesRecaptcha` trait does for you in a FormRequest.
+
+Check: `bot-shield:doctor` reports `Captcha ... google-v3, threshold 0.6`. Submit the form once, then `php artisan bot-shield:stats` shows one captcha verification. If the component renders nothing, the keys are missing.
+
+> Deployed sites keep their env in the Forge UI, so set both keys there as well as locally.
+
+**6. Guard the action against known bots.**
+
+Add `#[BlocksBots]` to a Livewire submit action, or call `protectAgainstBots()` from the `ProtectsAgainstBots` trait. This refuses agents matched by a `block` or `deny` rule, which by default covers search engines, AI crawlers and scripted clients.
+
+Check: `bot-shield:stats` shows a blocked submission after a `curl` POST to the form.
+
+**7. Optional, stop the scanner traffic.**
+
+Register the probe firewall first in the global middleware stack, as shown under [Middleware](#middleware). Check: `bot-shield:stats` starts listing probe path hits within a day on any public site.
+
+**8. After a week, tune the threshold.**
+
+```bash
+php artisan bot-shield:scores --days=7
+```
+
+It prints the score distribution from your own traffic and suggests a threshold, or says there is not enough data yet. Change `BOT_SHIELD_RECAPTCHA_SCORE` only if the histogram agrees.
+
+Writing tests for the form you just protected? See [Testing your own application](#testing-your-own-application), which lets you script captcha answers instead of calling Google.
+
 ## Exception hardening
 
 `bot-shield:install` wires this for you. To do it by hand, call `BotShield::handles()` inside `withExceptions()`:

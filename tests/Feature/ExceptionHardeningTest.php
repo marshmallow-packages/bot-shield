@@ -169,17 +169,23 @@ describe('client error rendering', function () {
 
     /*
      * Laravel consults an exception's own render() method before any renderable
-     * callback, so the two Livewire exceptions that define one keep answering
-     * 419. That still satisfies the goal, a client error rather than a 500, and
-     * taking it over would mean map(), which also rewrites the exception during
-     * reporting and would cost us the real class and stack trace in Sentry.
+     * callback. Livewire 3.8 added render() to these two, returning 419, so from
+     * that version on they keep their own status and ours never applies. On
+     * earlier Livewire 3 there is no render() and they get our 422.
+     *
+     * The contract this pins is the one that matters either way: a client error,
+     * never a 500. Taking the status over on newer Livewire would mean map(),
+     * which also rewrites the exception during reporting and would cost us the
+     * real class and stack trace in Sentry.
      */
-    it('leaves the status of self rendering livewire exceptions to livewire', function (Throwable $exception) {
+    it('always answers a client error for self rendering livewire exceptions', function (Throwable $exception) {
         $handler = hardenedHandler();
 
-        $response = $handler->render(incomingRequest(), $exception);
+        $status = $handler->render(incomingRequest(), $exception)->getStatusCode();
 
-        expect($response->getStatusCode())->toBe(419);
+        expect($status)->toBeGreaterThanOrEqual(400)
+            ->and($status)->toBeLessThan(500)
+            ->and($status)->toBeIn([419, 422]);
     })->with([
         'corrupt payload' => fn () => new CorruptComponentPayloadException,
         'locked property' => fn () => new CannotUpdateLockedPropertyException('email'),
