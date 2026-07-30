@@ -21,14 +21,22 @@
         "illuminate/support": "^12.0||^13.0"
     },
     "require-dev": {
+        "jaybizzle/crawler-detect": "^1.3",
         "larastan/larastan": "^3.9",
-        "laravel/pint": "^1.29",
         "laravel/pao": "^1.0",
+        "laravel/pint": "^1.29",
+        "livewire/livewire": "^3.0||^4.0",
         "orchestra/testbench": "^10.0||^11.0",
         "pestphp/pest": "^4.6",
         "pestphp/pest-plugin-laravel": "^4.1",
         "pestphp/pest-plugin-type-coverage": "^4.0",
-        "phpstan/extension-installer": "^1.4"
+        "phpstan/extension-installer": "^1.4",
+        "spatie/laravel-honeypot": "^4.6"
+    },
+    "suggest": {
+        "livewire/livewire": "Required for the Livewire attributes and Livewire exception hardening (^3.0||^4.0).",
+        "spatie/laravel-honeypot": "Required for the honeypot form components (^4.6).",
+        "jaybizzle/crawler-detect": "Required for the crawler-detect bot detector driver (^1.3)."
     },
     "autoload": {
         "psr-4": {
@@ -66,7 +74,7 @@
             "vendor/bin/pint --parallel --test"
         ],
         "analyse": [
-            "vendor/bin/phpstan analyse"
+            "vendor/bin/phpstan analyse --memory-limit=1G"
         ],
         "test:types": [
             "vendor/bin/pest --type-coverage --min=100"

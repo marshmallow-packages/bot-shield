@@ -21,6 +21,7 @@ This repository is a Laravel package. Keep the package focused, idiomatic, and e
 
 ## Local Skills
 
+- `bot-shield-overview`: use first when starting work here, for stable architecture and invariants. `/prime` invokes it.
 - `package-scaffold`: use when adding package capabilities or wiring them through the service provider, including commands, migrations, routes, config, views, translations, assets, middleware, publish tags, workbench files, and console-only behavior.
 - `package-testing`: use when adding or changing package tests with Pest 4 and Orchestra Testbench.
 - `package-release`: use when preparing changelog, release notes, tags, or GitHub release workflow changes.

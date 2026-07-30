@@ -3,5 +3,5 @@
 declare(strict_types=1);
 
 return [
-    'placeholder' => 'BotShield placeholder translation.',
+    'invalid_component_data' => 'Invalid component data.',
 ];
