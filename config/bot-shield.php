@@ -129,6 +129,49 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Honeypot
+    |--------------------------------------------------------------------------
+    |
+    | Hidden form fields that a person never fills and a scripted submission
+    | usually does, plus a minimum time on the page. Requires
+    | spatie/laravel-honeypot, which is a suggested rather than a required
+    | dependency so exception only installs stay lean.
+    |
+    | While "manage_spatie_config" is true the values below are pushed into
+    | spatie's own config at boot, which is the point of this package: one file
+    | per site instead of a published honeypot.php drifting per project. Turn it
+    | off to manage config/honeypot.php yourself.
+    |
+    */
+
+    'honeypot' => [
+
+        'enabled' => env('BOT_SHIELD_HONEYPOT_ENABLED', true),
+
+        'manage_spatie_config' => env('BOT_SHIELD_HONEYPOT_MANAGE_CONFIG', true),
+
+        /*
+        | Avoid spatie's well known "my_name" default, which bots recognise, and
+        | pick something that reads like a real field on your forms.
+        */
+        'name_field' => env('BOT_SHIELD_HONEYPOT_NAME', 'contact_reference'),
+
+        'randomize_name_field' => env('BOT_SHIELD_HONEYPOT_RANDOMIZE', true),
+
+        'valid_from_field' => env('BOT_SHIELD_HONEYPOT_VALID_FROM', 'submitted_from'),
+
+        /*
+        | Minimum seconds between rendering the form and submitting it. Two is a
+        | little stricter than spatie's default of one and still well under the
+        | time a person needs to fill in even a short contact form.
+        */
+        'seconds' => env('BOT_SHIELD_HONEYPOT_SECONDS', 2),
+
+        'status' => 403,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Captcha
     |--------------------------------------------------------------------------
     |

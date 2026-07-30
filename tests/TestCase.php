@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Livewire\LivewireServiceProvider;
 use Marshmallow\BotShield\BotShieldServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Spatie\Honeypot\HoneypotServiceProvider;
 
 abstract class TestCase extends Orchestra
 {
@@ -15,6 +16,7 @@ abstract class TestCase extends Orchestra
     {
         return [
             LivewireServiceProvider::class,
+            HoneypotServiceProvider::class,
             BotShieldServiceProvider::class,
         ];
     }

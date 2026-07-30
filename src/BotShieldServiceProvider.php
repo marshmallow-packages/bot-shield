@@ -11,6 +11,7 @@ use Marshmallow\BotShield\Captcha\CaptchaRenderer;
 use Marshmallow\BotShield\Console\Commands\BotShieldCommand;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Detectors\BotDetectorFactory;
+use Marshmallow\BotShield\Honeypot\SpatieHoneypotConfigurator;
 
 class BotShieldServiceProvider extends ServiceProvider
 {
@@ -41,6 +42,8 @@ class BotShieldServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'bot-shield');
 
         $this->registerBladeExtensions();
+
+        $this->app->make(SpatieHoneypotConfigurator::class)->apply();
 
         if (! $this->app->runningInConsole()) {
             return;
