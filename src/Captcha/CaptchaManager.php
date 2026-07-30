@@ -144,11 +144,13 @@ final class CaptchaManager
      */
     private function record(CaptchaVerdict $verdict, Request $request, CaptchaDriver $driver, array $context): void
     {
-        $this->channel()->info('bot-shield captcha verification', array_merge([
-            'driver' => $driver->name(),
-            'ip' => $request->ip(),
-            'url' => $request->fullUrl(),
-        ], $verdict->context(), $context));
+        if ($this->truthy('bot-shield.captcha.log')) {
+            $this->channel()->info('bot-shield captcha verification', array_merge([
+                'driver' => $driver->name(),
+                'ip' => $request->ip(),
+                'url' => $request->fullUrl(),
+            ], $verdict->context(), $context));
+        }
 
         $this->recorder->record(EventType::Captcha, $verdict->outcome->value, [
             'score' => $verdict->score,

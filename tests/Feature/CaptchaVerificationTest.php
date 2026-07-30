@@ -75,6 +75,31 @@ describe('the score based driver', function () {
             ->toBe(CaptchaOutcome::LowScore);
     });
 
+    it('can be told not to log, while still recording the event', function () {
+        Log::spy();
+
+        config()->set('bot-shield.captcha.log', false);
+
+        fakeSiteverify(['success' => true, 'score' => 0.8]);
+
+        $verdict = app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        expect($verdict->passes())->toBeTrue();
+
+        Log::shouldNotHaveReceived('info');
+    });
+
+    it('logs to a named channel when one is configured', function () {
+        Log::shouldReceive('channel')->with('stack')->once()->andReturnSelf();
+        Log::shouldReceive('info')->once();
+
+        config()->set('bot-shield.captcha.log_channel', 'stack');
+
+        fakeSiteverify(['success' => true, 'score' => 0.8]);
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+    });
+
     it('logs every verification with its score', function () {
         Log::spy();
 

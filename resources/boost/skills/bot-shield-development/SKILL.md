@@ -221,6 +221,8 @@ Read the data with `bot-shield:stats --days=7` and `bot-shield:scores --days=30 
 
 Set `monitoring.hash_ips` to `true` where storing visitor addresses for a month exceeds what the privacy notice covers. Counting and grouping still work.
 
+Monitoring is optional like everything else. `BOT_SHIELD_MONITORING_ENABLED=false` stops all recording, no migration needed, and nothing else in the package depends on it. Only `bot-shield:stats` and `bot-shield:scores` need it, and they warn rather than fail. `BOT_SHIELD_CAPTCHA_LOG=false` separately silences the per-verification log line for a site that wants neither.
+
 ### 9. Test the consuming app
 
 ```php

@@ -399,6 +399,47 @@ A captcha driver implements `Marshmallow\BotShield\Contracts\CaptchaDriver` and 
 
 Your class is resolved from the container, so it can take constructor dependencies. Both are validated at resolve time and report a clear error through `bot-shield:doctor` if they do not implement the contract.
 
+## Features and defaults
+
+Nothing here is mandatory. Every feature can be turned off, and `BOT_SHIELD_ENABLED=false` turns off all of them at once. "Default" is what a fresh install does with no config changes.
+
+Two features read as on but do nothing until you act: exception hardening needs `BotShield::handles()` called, and the probe firewall needs its middleware registered. `bot-shield:doctor` catches the first.
+
+| Feature | Default | Also needs | Toggle |
+| --- | --- | --- | --- |
+| Livewire exception suppression | on | `BotShield::handles()` or the trait | `BOT_SHIELD_EXCEPTIONS_ENABLED` |
+| Transient database error suppression | **off** | | `BOT_SHIELD_TRANSIENT_ERRORS_ENABLED` |
+| Custom 4xx suppression | **off** | `exceptions.client_errors.classes` | `BOT_SHIELD_CLIENT_ERRORS_ENABLED` |
+| Agent allow and block rules | on, ~40 rules | | `agents.rules`, config only |
+| Form guard | on | `#[BlocksBots]` on an action | `BOT_SHIELD_FORM_GUARD_ENABLED` |
+| Refuse everything the detector flags | **off** | | `BOT_SHIELD_FORM_GUARD_USE_DETECTOR` |
+| Submission rate limiting | on | `#[RateLimitsSubmissions]` on an action | `BOT_SHIELD_RATE_LIMIT_ENABLED` |
+| reCAPTCHA | on, inert without keys | the keys, and the blade component | `BOT_SHIELD_RECAPTCHA_ENABLED` |
+| Accept submissions during a captcha outage | **off** | | `BOT_SHIELD_RECAPTCHA_FAIL_OPEN` |
+| Google terms notice | **off** | | `BOT_SHIELD_RECAPTCHA_SHOW_TERMS` |
+| Honeypot | on | `spatie/laravel-honeypot`, and the blade component | `BOT_SHIELD_HONEYPOT_ENABLED` |
+| Honeypot config driven from this package | on | | `BOT_SHIELD_HONEYPOT_MANAGE_CONFIG` |
+| Probe path firewall | on | the `BlockProbePaths` middleware registered | `BOT_SHIELD_PROBE_PATHS_ENABLED` |
+| Refuse denied crawlers' page views | **off** | the `DenyAgents` middleware registered | `BOT_SHIELD_DENY_PAGE_VIEWS` |
+| robots.txt stanzas | on demand | | none, run `bot-shield:robots` |
+| Event recording | on | the migration published and run | `BOT_SHIELD_MONITORING_ENABLED` |
+| Hashed addresses in the events table | **off** | | `BOT_SHIELD_MONITORING_HASH_IPS` |
+| Structured captcha logging | on | | `BOT_SHIELD_CAPTCHA_LOG` |
+
+The optional Composer packages are only needed by the feature that uses them: `spatie/laravel-honeypot` for the honeypot, `jaybizzle/crawler-detect` for that detector driver, and `livewire/livewire` for the Livewire attributes. Enable a feature without its dependency and the package tells you which command to run rather than failing with a class-not-found.
+
+### Exception hardening only
+
+The leanest useful install. No extra Composer packages, no migration, no middleware:
+
+```dotenv
+BOT_SHIELD_HONEYPOT_ENABLED=false
+BOT_SHIELD_RECAPTCHA_ENABLED=false
+BOT_SHIELD_MONITORING_ENABLED=false
+BOT_SHIELD_RATE_LIMIT_ENABLED=false
+BOT_SHIELD_PROBE_PATHS_ENABLED=false
+```
+
 ## Configuration
 
 Full documentation lives in the published `config/bot-shield.php`. The top-level keys:
@@ -426,6 +467,8 @@ Full documentation lives in the published `config/bot-shield.php`. The top-level
 | `captcha.score` | `0.6` | Minimum v3 score to accept. |
 | `captcha.score_challenge` | `0.9` | Stricter threshold for `challenge` agents. |
 | `captcha.fail_open` | `false` | Accept submissions when the provider is unreachable. |
+| `captcha.log` | `true` | Log every verification with its score. |
+| `captcha.log_channel` | app default | Channel the above writes to. |
 | `exceptions.enabled` | `true` | Whether exception hardening is active. |
 | `exceptions.paths` | `livewire/*` | Paths the hardening applies to. |
 | `exceptions.rules` | Livewire set | Exception matchers, extensible per site. |

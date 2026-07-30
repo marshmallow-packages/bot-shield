@@ -326,6 +326,14 @@ return [
 
         'fail_open' => env('BOT_SHIELD_RECAPTCHA_FAIL_OPEN', false),
 
+        /*
+        | Every verification is logged with its score, which is how a threshold
+        | gets tuned against real traffic. Turn "log" off for a site that keeps
+        | its record in the events table alone, or where the log volume is not
+        | worth it. "log_channel" is empty for the application default.
+        */
+        'log' => env('BOT_SHIELD_CAPTCHA_LOG', true),
+
         'log_channel' => env('BOT_SHIELD_LOG_CHANNEL'),
 
         'field' => 'g-recaptcha-response',
