@@ -52,3 +52,26 @@ it('never matches when the rule has no class', function () {
 
     expect($rule->matches(new RuntimeException('boom')))->toBeFalse();
 });
+
+it('matches an exception wrapped by another one', function () {
+    $rule = ExceptionRule::fromArray(['class' => TypeError::class, 'contains' => ['must be of type']]);
+    $wrapped = new RuntimeException('rendering failed', 0, new TypeError('Argument #1 must be of type string, array given'));
+
+    expect($rule->matches($wrapped))->toBeTrue();
+});
+
+it('does not match when nothing in the chain qualifies', function () {
+    $rule = ExceptionRule::fromArray(['class' => TypeError::class]);
+    $wrapped = new RuntimeException('outer', 0, new LogicException('inner'));
+
+    expect($rule->matches($wrapped))->toBeFalse();
+});
+
+it('only treats a literal true as always', function (mixed $value, bool $expected) {
+    expect(ExceptionRule::fromArray(['class' => RuntimeException::class, 'always' => $value])->always)->toBe($expected);
+})->with([
+    'true' => [true, true],
+    'string' => ['true', false],
+    'one' => [1, false],
+    'absent' => [null, false],
+]);

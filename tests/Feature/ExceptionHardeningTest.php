@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\Request;
+use Illuminate\View\ViewException;
 use Livewire\Exceptions\ComponentNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
@@ -62,11 +63,27 @@ describe('report suppression', function () {
     it('still reports matched exceptions from real browsers', function () {
         $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
 
-        expect($handler->shouldReport(new CorruptComponentPayloadException))->toBeTrue();
+        expect($handler->shouldReport(new TypeError('Argument #1 ($email) must be of type string, array given')))->toBeTrue();
+    });
+
+    it('suppresses always-rules even when the client looks like a browser', function (Throwable $exception) {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+
+        expect($handler->shouldReport($exception))->toBeFalse();
+    })->with([
+        'corrupt payload' => fn () => new CorruptComponentPayloadException,
+        'locked property' => fn () => new CannotUpdateLockedPropertyException('email'),
+    ]);
+
+    it('suppresses matched exceptions a view rethrows for bots', function () {
+        $handler = hardenedHandler();
+        $inner = new TypeError('App\Livewire\Modal::open(): Argument #1 ($id) must be of type int, array given');
+
+        expect($handler->shouldReport(new ViewException($inner->getMessage().' (View: modal.blade.php)', 0, 1, __FILE__, __LINE__, $inner)))->toBeFalse();
     });
 
     it('still reports matched exceptions outside the protected paths', function () {
-        $handler = hardenedHandler(incomingRequest('/contact'));
+        $handler = hardenedHandler(incomingRequest('/contact', BROWSER_AGENT));
 
         expect($handler->shouldReport(new CorruptComponentPayloadException))->toBeTrue();
     });

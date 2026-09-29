@@ -18,6 +18,20 @@ final class ExceptionMatcher
         return $this->matchesAny($exception, 'bot-shield.exceptions.rules');
     }
 
+    /**
+     * Bot noise that needs no detector verdict, see ExceptionRule::$always.
+     */
+    public function matchesUnconditionalBotNoise(Throwable $exception): bool
+    {
+        foreach ($this->rules('bot-shield.exceptions.rules') as $rule) {
+            if ($rule->always && $rule->matches($exception)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function matchesTransientError(Throwable $exception): bool
     {
         return $this->matchesAny($exception, 'bot-shield.exceptions.transient_errors.rules');

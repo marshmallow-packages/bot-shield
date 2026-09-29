@@ -197,7 +197,7 @@ class Handler extends ExceptionHandler
 }
 ```
 
-Either way, the malformed-Livewire exception set is no longer reported when the request came from a bot, and real browsers still report normally. Matched exceptions render as a client error rather than a 500, because malformed component state is never a server fault.
+Either way, the malformed-Livewire exception set is no longer reported when the request came from a bot, and real browsers still report normally. Two shapes skip the bot check entirely: `CannotUpdateLockedPropertyException` and `CorruptComponentPayloadException` need a hand-edited request, which the normal UI never sends, and a headless browser presents a stock browser user agent, so asking the detector would let exactly that traffic through. Matched exceptions render as a client error rather than a 500, because malformed component state is never a server fault.
 
 > Two Livewire exceptions, `CorruptComponentPayloadException` and `CannotUpdateLockedPropertyException`, define their own `render()` method and answer 419 in production. Laravel consults an exception's own `render()` before any package callback, so those keep their 419. That is still a client error rather than a 500, which is the point.
 
@@ -209,11 +209,12 @@ Add your own patterns without waiting for a release:
     'rules' => [
         ['class' => YourVendor\SomeException::class],
         ['class' => TypeError::class, 'contains' => ['must be of type']],
+        ['class' => YourVendor\TamperedStateException::class, 'always' => true],
     ],
 ],
 ```
 
-Each rule matches when the exception is an instance of `class` and its message contains every needle in `contains`.
+Each rule matches when the exception, or any exception it wraps (`getPrevious()`), is an instance of `class` and its message contains every needle in `contains`, so an error Blade rethrows as a `ViewException` still matches. `always => true` suppresses the match without asking the detector: reserve it for exceptions the normal UI cannot produce, because it also hides them for real browsers.
 
 ## Agent rules
 
