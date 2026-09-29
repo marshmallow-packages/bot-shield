@@ -97,6 +97,10 @@ final class ExceptionHardening
             return false;
         }
 
+        if ($this->matcher->matchesUnconditionalBotNoise($exception)) {
+            return true;
+        }
+
         return $this->detector->isBot($request);
     }
 

@@ -42,6 +42,7 @@ final class CaptchaRenderer
 
     /**
      * @param  array<string, mixed>  $options
+     * @return view-string
      */
     public function view(array $options = []): string
     {

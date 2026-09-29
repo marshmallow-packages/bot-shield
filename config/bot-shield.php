@@ -396,14 +396,16 @@ return [
         'status' => 422,
 
         /*
-        | Each rule matches when the exception is an instance of "class" and
-        | its message contains every needle in "contains". Add your own rules
-        | here to cover new bot noise without waiting for a package release.
+        | Each rule matches when the exception, or one it wraps, is an instance
+        | of "class" and its message contains every needle in "contains".
+        | "always" suppresses without asking the detector: only for shapes the
+        | normal UI cannot produce, since headless browsers pass as browsers.
+        | Add your own rules here without waiting for a package release.
         */
         'rules' => [
-            ['class' => CannotUpdateLockedPropertyException::class],
+            ['class' => CannotUpdateLockedPropertyException::class, 'always' => true],
             ['class' => ComponentNotFoundException::class],
-            ['class' => CorruptComponentPayloadException::class],
+            ['class' => CorruptComponentPayloadException::class, 'always' => true],
             ['class' => TypeError::class, 'contains' => ['must be of type']],
             ['class' => TypeError::class, 'contains' => ['Cannot assign', 'to property']],
             ['class' => ErrorException::class, 'contains' => ['Trying to access array offset on']],
