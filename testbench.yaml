@@ -1,6 +1,8 @@
 laravel: '@testbench'
 
 providers:
+  # Registers the bot-shield:: view namespace for Larastan's view-string checks.
+  - Marshmallow\BotShield\BotShieldServiceProvider
   # - Workbench\App\Providers\WorkbenchServiceProvider
 
 migrations:
