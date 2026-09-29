@@ -1,6 +1,6 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.1...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.0...HEAD)
 
 ### Added
 
@@ -9,6 +9,21 @@
 ### Fixed
 
 - Exception rules now also match an exception wrapped by another one (`getPrevious()`), up to ten levels, so an error rethrown by Blade as a `ViewException` is recognised.
+
+## [v1.1.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.1...v1.1.0) - 2026-09-29
+
+### Added
+
+- Exception rules accept `always => true`: the match is suppressed without asking the detector. The shipped rules for `CannotUpdateLockedPropertyException` and `CorruptComponentPayloadException` use it, because headless browsers send a stock browser user agent and passed the `user-agent` detector as real visitors.
+
+### Fixed
+
+- Exception rules now also match an exception wrapped by another one (`getPrevious()`), up to ten levels, so an error rethrown by Blade as a `ViewException` is recognised.
+- CI: the captcha view names are typed as `view-string` and the package provider is registered for static analysis, so newer Larastan versions pass.
+
+### Upgrading
+
+Sites that published `config/bot-shield.php` keep their old rule list. Add `'always' => true` to the `CannotUpdateLockedPropertyException` and `CorruptComponentPayloadException` rules there, or re-publish the config.
 
 ## [v1.0.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.0.0...v1.0.1) - 2026-07-30
 
