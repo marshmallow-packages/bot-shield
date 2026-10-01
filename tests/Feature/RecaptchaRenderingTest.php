@@ -26,6 +26,15 @@ it('renders the score based widget with the site key', function () {
         ->and($html)->toContain('name="g-recaptcha-response"');
 });
 
+it('fetches a fresh token after each livewire round trip', function () {
+    configureCaptcha('google-v3');
+
+    $html = Blade::render('<x-bot-shield::recaptcha />');
+
+    expect($html)->toContain("Livewire.hook('commit'")
+        ->and($html)->toContain('livewire:init');
+});
+
 it('renders the checkbox widget for the challenge driver', function () {
     configureCaptcha('google-v2');
 

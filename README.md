@@ -447,7 +447,7 @@ For automated tests, do not disable it. `BotShield::fake()` scripts the answers 
 
 Neither widget waits for the submit button, because asking at submit time means waiting for Google's network round trip before the form can post.
 
-- **v3** asks on page load and refreshes every 100 seconds, since a token expires after two minutes and a form can be open far longer than that.
+- **v3** asks on page load and refreshes every 100 seconds, since a token expires after two minutes and a form can be open far longer than that. Inside a Livewire component it also asks again after every round trip of that component: a token is single use, so a retry after a validation error would otherwise resend the spent one and fail as a robot.
 - **Invisible v2** asks on page load and once more on the form's first interaction. It has no refresh loop. The second ask exists so a form that took a while to fill in submits a fresh token rather than an expired one.
 
 Two consequences worth knowing if you are replacing a submit-time implementation:

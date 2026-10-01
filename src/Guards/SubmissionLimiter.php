@@ -25,12 +25,21 @@ final class SubmissionLimiter
 
     public function hit(Request $request, string $form, ?int $attempts = null, ?int $decaySeconds = null): void
     {
+        $this->ensureAllowed($request, $form, $attempts);
+
+        $this->count($request, $form, $decaySeconds);
+    }
+
+    /**
+     * Refuse the submission once the address has used up its attempts.
+     */
+    public function ensureAllowed(Request $request, string $form, ?int $attempts = null): void
+    {
         if (! $this->enabled()) {
             return;
         }
 
         $attempts ??= (int) $this->config->get('bot-shield.rate_limit.attempts', 5);
-        $decaySeconds ??= (int) $this->config->get('bot-shield.rate_limit.decay_seconds', 60);
 
         $key = $this->key($request, $form);
 
@@ -42,8 +51,17 @@ final class SubmissionLimiter
                 (string) trans('bot-shield::messages.too_many_submissions'),
             );
         }
+    }
 
-        $this->limiter->hit($key, max($decaySeconds, 1));
+    public function count(Request $request, string $form, ?int $decaySeconds = null): void
+    {
+        if (! $this->enabled()) {
+            return;
+        }
+
+        $decaySeconds ??= (int) $this->config->get('bot-shield.rate_limit.decay_seconds', 60);
+
+        $this->limiter->hit($this->key($request, $form), max($decaySeconds, 1));
     }
 
     public function clear(Request $request, string $form): void
