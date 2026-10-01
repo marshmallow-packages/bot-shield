@@ -1,6 +1,14 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.0...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...HEAD)
+
+### Fixed
+
+- The v3 widget fetches a fresh token after every Livewire round trip of its component. A token is single use, so a visitor who corrected a validation error and submitted again resent the spent token, was refused as a robot, and after a few retries hit the rate limit.
+- `#[RateLimitsSubmissions]` no longer counts a submit that `#[ValidatesRecaptcha]` refused for a spent or expired token (`timeout-or-duplicate`). Low scores and invalid tokens still count. The count now happens after the action, so this holds whichever order the attributes are declared in.
+- `SubmissionLimiter` gains `ensureAllowed()` and `count()`; `hit()` still does both.
+
+## [v1.1.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.0...v1.1.1) - 2026-10-01
 
 ### Fixed
 
