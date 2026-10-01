@@ -45,6 +45,31 @@
 
         // Tokens expire after two minutes, so keep a fresh one on long forms.
         window.setInterval(refresh, 100000);
+
+        // A token is single use: a retry after a validation error would resend
+        // the spent one and fail as a robot. Fetch a new one after every round
+        // trip of the component that holds this field.
+        function watchLivewire() {
+            window.Livewire.hook('commit', function (hook) {
+                if (! hook.component.el.contains(field)) {
+                    return;
+                }
+
+                hook.succeed(function () {
+                    queueMicrotask(function () {
+                        if (document.contains(field)) {
+                            refresh();
+                        }
+                    });
+                });
+            });
+        }
+
+        if (window.Livewire && typeof window.Livewire.hook === 'function') {
+            watchLivewire();
+        } else {
+            document.addEventListener('livewire:init', watchLivewire, { once: true });
+        }
     })();
 </script>
 

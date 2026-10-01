@@ -23,6 +23,9 @@ use Marshmallow\BotShield\Captcha\CaptchaManager;
 #[Attribute(Attribute::TARGET_METHOD)]
 final class ValidatesRecaptcha extends BotShieldAttribute
 {
+    /** Request attribute set when the provider rejected an already used or expired token. */
+    public const string SPENT_TOKEN = 'bot-shield.captcha.spent-token';
+
     public function __construct(
         private readonly string $property = 'gRecaptchaResponse',
         private readonly ?string $form = null,
@@ -49,6 +52,10 @@ final class ValidatesRecaptcha extends BotShieldAttribute
 
         if ($verdict->passes()) {
             return;
+        }
+
+        if (in_array('timeout-or-duplicate', $verdict->errorCodes, true)) {
+            $request->attributes->set(self::SPENT_TOKEN, true);
         }
 
         $this->failValidation($captcha->fieldName(), $verdict->message(), $returnEarly);
