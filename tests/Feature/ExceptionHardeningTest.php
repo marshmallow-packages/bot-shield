@@ -214,10 +214,11 @@ describe('client error rendering', function () {
 
 /**
  * @param  array<string, mixed>  $updates
+ * @param  array<string, mixed>  $data
  */
-function livewireUpdateRequest(string $component, array $updates, string $userAgent = BROWSER_AGENT): Request
+function livewireUpdateRequest(string $component, array $updates, array $data = [], string $userAgent = BROWSER_AGENT): Request
 {
-    $snapshot = json_encode(['data' => [], 'memo' => ['id' => 'abc', 'name' => $component], 'checksum' => 'x']);
+    $snapshot = json_encode(['data' => $data, 'memo' => ['id' => 'abc', 'name' => $component], 'checksum' => 'x']);
 
     return Request::create('/livewire/update', 'POST', [
         'components' => [['snapshot' => $snapshot, 'updates' => $updates, 'calls' => []]],
@@ -292,6 +293,59 @@ describe('forged livewire requests', function () {
         $handler = hardenedHandler($request);
 
         expect($handler->shouldReport(new CannotMutateReactivePropException('product-card', 'product')))->toBeTrue();
+    });
+});
+
+describe('forged update types', function () {
+    it('suppresses type errors from an array forged into a scalar prop, even for browsers', function (string|int|float|bool $current, Throwable $exception) {
+        $request = livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => $current]);
+        $handler = hardenedHandler($request);
+
+        expect($handler->shouldReport($exception))->toBeFalse();
+    })->with([
+        'string' => 'jane@example.com',
+        'int' => 3,
+        'float' => 1.5,
+        'bool' => false,
+    ])->with([
+        'typed property' => fn () => new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string'),
+        'wrapped by a view' => fn () => new ViewException('htmlspecialchars(): Argument #1 ($string) must be of type string, array given', 0, 1, __FILE__, __LINE__, new TypeError('htmlspecialchars(): Argument #1 ($string) must be of type string, array given')),
+        'array offset' => fn () => new ErrorException('Trying to access array offset on value of type int'),
+    ]);
+
+    it('keeps reporting browsers whose updates match the snapshot types', function (array $updates, array $data) {
+        $handler = hardenedHandler(livewireUpdateRequest('contact', $updates, $data));
+
+        expect($handler->shouldReport(new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string')))->toBeTrue();
+    })->with([
+        'scalar into scalar' => [['email' => 'jane@example.com'], ['email' => '']],
+        'string into int' => [['quantity' => '5'], ['quantity' => 1]],
+        'array into null' => [['tags' => ['a']], ['tags' => null]],
+        'array into array' => [['tags' => ['a']], ['tags' => [[], ['s' => 'arr']]]],
+        'unknown prop' => [['tags' => ['a']], []],
+        'nested key' => [['address.street' => ['a']], ['address' => 'x']],
+    ]);
+
+    it('keeps reporting unmatched exceptions on a forged update', function () {
+        $handler = hardenedHandler(livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => '']));
+
+        expect($handler->shouldReport(new RuntimeException('the database is actually on fire')))->toBeTrue();
+    });
+
+    it('asks the detector again once forged update detection is off', function () {
+        config()->set('bot-shield.exceptions.forged_updates', false);
+
+        $handler = hardenedHandler(livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => '']));
+
+        expect($handler->shouldReport(new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string')))->toBeTrue();
+    });
+
+    it('ignores a snapshot it cannot read', function () {
+        $request = Request::create('/livewire/update', 'POST', [
+            'components' => [['snapshot' => 'nonsense', 'updates' => ['email' => ['forged']]], 'nonsense'],
+        ], [], [], ['HTTP_USER_AGENT' => BROWSER_AGENT]);
+
+        expect(hardenedHandler($request)->shouldReport(new TypeError('Argument #1 must be of type string, array given')))->toBeTrue();
     });
 });
 
