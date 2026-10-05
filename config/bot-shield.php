@@ -400,6 +400,14 @@ return [
         'status' => 422,
 
         /*
+        | Treat a request that sends an array to a prop its snapshot holds as a
+        | scalar as forged, so the rules below skip the detector for it. Bots
+        | send browser user agents; a text input never sends an array. Turn it
+        | off if a real form binds checkboxes to a prop that starts as a string.
+        */
+        'forged_updates' => env('BOT_SHIELD_FORGED_UPDATES', true),
+
+        /*
         | Each rule matches when the exception, or one it wraps, is an instance
         | of "class" and its message contains every needle in "contains".
         | "when" names an ExceptionCondition that must also accept the request.

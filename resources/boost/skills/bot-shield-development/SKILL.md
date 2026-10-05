@@ -278,7 +278,7 @@ Commands: `bot-shield:install`, `bot-shield:doctor`, `bot-shield:stats`, `bot-sh
 - do not enable `forms.use_detector` with the default `user-agent` driver unless legitimate API and mobile clients are known to send a browser user agent, since it refuses everything without `Mozilla/`
 - do not expect a uniform 422 from every Livewire exception: two of them define their own `render()` and answer 419, which is still a client error rather than a 500
 - do not add `MethodNotAllowedHttpException`, `NotFoundHttpException` or `TokenMismatchException` to `exceptions.rules`; Laravel already never reports them, and matching them only converts legitimate 404, 405 and 419 responses into 422s
-- do not leave server-set Livewire props public and unlocked: bots send browser user agents, so a forged update that hits a typed prop is only caught when the detector flags the request. Add `#[Locked]`; a forged update to a locked prop is suppressed whatever the user agent
+- do not leave server-set Livewire props public and unlocked: bots send browser user agents, so a forged update is only caught when the detector flags the request or the update sends an array to a scalar prop (`exceptions.forged_updates`). Add `#[Locked]`; a forged update to a locked prop is suppressed whatever the user agent
 - do not suppress an exception class unconditionally when only some requests are forged: give the rule a `when` class implementing `Marshmallow\BotShield\Contracts\ExceptionCondition` that checks the request
 - do not leave `honeypot.manage_spatie_config` on while also maintaining `config/honeypot.php` by hand, since the package overwrites the keys it owns at boot
 - do not rely on the events table without scheduling `model:prune`

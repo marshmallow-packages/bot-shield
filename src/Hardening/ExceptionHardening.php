@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Marshmallow\BotShield\Contracts\BotDetector;
 use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedUpdateType;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -101,6 +102,10 @@ final class ExceptionHardening
             return true;
         }
 
+        if ($this->hasForgedUpdateTypes($exception, $request)) {
+            return true;
+        }
+
         return $this->detector->isBot($request);
     }
 
@@ -126,6 +131,19 @@ final class ExceptionHardening
             ['message' => trans('bot-shield::messages.invalid_component_data')],
             (int) $this->config->get('bot-shield.exceptions.status', 422),
         );
+    }
+
+    /**
+     * Bots send browser user agents, so a hand-edited payload is a stronger
+     * signal than the detector for the rules that would otherwise ask it.
+     */
+    private function hasForgedUpdateTypes(Throwable $exception, Request $request): bool
+    {
+        if ($this->config->get('bot-shield.exceptions.forged_updates', true) !== true) {
+            return false;
+        }
+
+        return (new ForgedUpdateType)->matches($exception, $request);
     }
 
     private function isTransientError(Throwable $exception): bool
