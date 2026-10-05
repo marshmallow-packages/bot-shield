@@ -9,12 +9,18 @@ name: Sync main into develop
 # merge conflicts, fall back to opening a PR so a human resolves it.
 #
 # No loop risk: pushes made with GITHUB_TOKEN do not trigger workflows, and this
-# one only fires on main anyway.
+# one only fires on main or after the changelog workflow.
 
 on:
   push:
     branches:
       - main
+  # The changelog commit is pushed with GITHUB_TOKEN, which fires no push event.
+  workflow_run:
+    workflows:
+      - Update Changelog
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
