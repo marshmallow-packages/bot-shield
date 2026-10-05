@@ -2,14 +2,6 @@
 
 ## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...HEAD)
 
-### Added
-
-- The detector-gated exception rules no longer depend on the user agent alone: a Livewire update that sends an array to a prop the snapshot holds as a scalar marks the request as forged, so the matched exception is not reported. Toggle with `exceptions.forged_updates` (`BOT_SHIELD_FORGED_UPDATES`, on by default).
-- New detector-gated rules for the shapes forged array updates produce: `Attempt to read property ... on array`, `Cannot access offset of type array`, `Call to a member function ... on array`, and `First array member is not a valid class name or object`.
-- Exception rules accept a `when` condition: a class implementing `ExceptionCondition` that must also accept the request.
-- `MethodNotFoundException` is suppressed and answers a client error, whatever the user agent, when the called method name is not an identifier (forged `calls`, such as SQL injection probes). A typo in a real method name still reports.
-- `CannotMutateReactivePropException` is suppressed and answers a client error, whatever the user agent, when the request's own `updates` name that prop on that component. A component mutating its own reactive prop still reports.
-
 ## [v1.1.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.0...v1.1.1) - 2026-10-01
 
 ### Fixed
