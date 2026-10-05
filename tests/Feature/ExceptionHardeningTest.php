@@ -7,9 +7,12 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\ViewException;
 use Livewire\Exceptions\ComponentNotFoundException;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Features\SupportReactiveProps\CannotMutateReactivePropException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
 use Marshmallow\BotShield\Facades\BotShield;
 use Marshmallow\BotShield\Tests\Fixtures\ApiClientException;
@@ -41,6 +44,21 @@ function hardenedHandler(?Request $request = null): Handler
     return $handler;
 }
 
+/**
+ * Lets PHP itself produce the exception, so the rules are pinned to the real
+ * engine message rather than a hand-typed copy.
+ */
+function thrownBy(Closure $code, mixed $argument): Throwable
+{
+    try {
+        $code($argument);
+    } catch (Throwable $exception) {
+        return $exception;
+    }
+
+    throw new RuntimeException('Expected the code to throw.');
+}
+
 function transientQueryException(string $message): QueryException
 {
     return new QueryException('mysql', 'select 1', [], new RuntimeException($message));
@@ -58,6 +76,10 @@ describe('report suppression', function () {
         'typed property hydration' => fn () => new TypeError('Cannot assign array to property App\Livewire\Contact::$email of type string'),
         'argument type' => fn () => new TypeError('App\Livewire\Contact::setEmail(): Argument #1 ($email) must be of type string, array given'),
         'array offset on null' => fn () => new ErrorException('Trying to access array offset on value of type null'),
+        'property read on array' => fn () => new ErrorException('Attempt to read property "title" on array'),
+        'array used as offset' => fn () => thrownBy(fn (array $offset): mixed => ['x'][$offset], ['y']),
+        'method call on array' => fn () => thrownBy(fn (mixed $value): mixed => $value->reverseStructure(), ['x']),
+        'array callable from a forged prop' => fn () => thrownBy(fn (mixed $callable): mixed => $callable(), [[1], 'handle']),
     ]);
 
     it('still reports matched exceptions from real browsers', function () {
@@ -207,6 +229,150 @@ describe('client error rendering', function () {
         'corrupt payload' => fn () => new CorruptComponentPayloadException,
         'locked property' => fn () => new CannotUpdateLockedPropertyException('email'),
     ]);
+});
+
+/**
+ * @param  array<string, mixed>  $updates
+ * @param  array<string, mixed>  $data
+ */
+function livewireUpdateRequest(string $component, array $updates, array $data = [], string $userAgent = BROWSER_AGENT): Request
+{
+    $snapshot = json_encode(['data' => $data, 'memo' => ['id' => 'abc', 'name' => $component], 'checksum' => 'x']);
+
+    return Request::create('/livewire/update', 'POST', [
+        'components' => [['snapshot' => $snapshot, 'updates' => $updates, 'calls' => []]],
+    ], [], [], ['HTTP_USER_AGENT' => $userAgent]);
+}
+
+describe('forged livewire requests', function () {
+    /*
+     * Livewire 4.4 gave MethodNotFoundException its own report() and render():
+     * outside debug mode it is never logged and answers 419 before any package
+     * callback. Earlier versions report it and get our 422. The contract pinned
+     * here holds on both: forged names are suppressed and answer a client error.
+     */
+    it('suppresses and renders method names no template can produce, even for browsers', function (string $method) {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+        $exception = new MethodNotFoundException($method);
+
+        expect($handler->shouldReport($exception))->toBeFalse()
+            ->and($handler->render(incomingRequest(userAgent: BROWSER_AGENT), $exception)->getStatusCode())->toBeIn([419, 422]);
+    })->with([
+        'sql probe' => '(select 198766*667891)',
+        'variable probe' => '@@PStu1',
+        'empty' => '',
+        'quote' => "save'",
+    ]);
+
+    it('keeps reporting a method name that is a plain typo', function (string $method) {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+        $exception = new MethodNotFoundException($method);
+
+        expect($handler->shouldReport($exception))->toBeTrue()
+            ->and($handler->render(incomingRequest(userAgent: BROWSER_AGENT), $exception)->getStatusCode())->not->toBe(422);
+    })->with([
+        'typo' => 'submitForm',
+        'magic action' => '$refresh',
+        'parent call' => '$parent.close',
+    ]);
+
+    it('suppresses a reactive prop mutation the request itself forged', function (string $key) {
+        $request = livewireUpdateRequest('product-card', [$key => ['forged']]);
+        $handler = hardenedHandler($request);
+        $exception = new CannotMutateReactivePropException('product-card', 'product');
+
+        expect($handler->shouldReport($exception))->toBeFalse()
+            ->and($handler->render($request, $exception)->getStatusCode())->toBe(422);
+    })->with([
+        'exact key' => 'product',
+        'nested key' => 'product.title',
+    ]);
+
+    it('keeps reporting a reactive prop the component mutated itself', function (array $updates, string $component) {
+        $request = livewireUpdateRequest($component, $updates);
+        $handler = hardenedHandler($request);
+        $exception = new CannotMutateReactivePropException('product-card', 'product');
+
+        expect($handler->shouldReport($exception))->toBeTrue()
+            ->and($handler->render($request, $exception)->getStatusCode())->toBe(500);
+    })->with([
+        'no updates' => [[], 'product-card'],
+        'other prop' => [['quantity' => 2], 'product-card'],
+        'prefix only' => [['productId' => 2], 'product-card'],
+        'other component' => [['product' => ['forged']], 'cart'],
+    ]);
+
+    it('keeps forged requests out of the log through the real report flow', function () {
+        $handler = hardenedHandler(livewireUpdateRequest('product-card', ['product' => ['forged']]));
+        Log::spy();
+
+        $handler->report(new CannotMutateReactivePropException('product-card', 'product'));
+        Log::shouldNotHaveReceived('error');
+
+        $handler->report(new CannotMutateReactivePropException('product-card', 'quantity'));
+        Log::shouldHaveReceived('error')->once();
+    });
+
+    it('keeps reporting a reactive prop mutation when the payload is unreadable', function () {
+        $request = Request::create('/livewire/update', 'POST', ['components' => 'nonsense'], [], [], ['HTTP_USER_AGENT' => BROWSER_AGENT]);
+        $handler = hardenedHandler($request);
+
+        expect($handler->shouldReport(new CannotMutateReactivePropException('product-card', 'product')))->toBeTrue();
+    });
+});
+
+describe('forged update types', function () {
+    it('suppresses type errors from an array forged into a scalar prop, even for browsers', function (string|int|float|bool $current, Throwable $exception) {
+        $request = livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => $current]);
+        $handler = hardenedHandler($request);
+
+        expect($handler->shouldReport($exception))->toBeFalse();
+    })->with([
+        'string' => 'jane@example.com',
+        'int' => 3,
+        'float' => 1.5,
+        'bool' => false,
+    ])->with([
+        'typed property' => fn () => new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string'),
+        'wrapped by a view' => fn () => new ViewException('htmlspecialchars(): Argument #1 ($string) must be of type string, array given', 0, 1, __FILE__, __LINE__, new TypeError('htmlspecialchars(): Argument #1 ($string) must be of type string, array given')),
+        'array offset' => fn () => new ErrorException('Trying to access array offset on value of type int'),
+        'method call on array' => fn () => thrownBy(fn (mixed $value): mixed => $value->reverseStructure(), ['x']),
+    ]);
+
+    it('keeps reporting browsers whose updates match the snapshot types', function (array $updates, array $data) {
+        $handler = hardenedHandler(livewireUpdateRequest('contact', $updates, $data));
+
+        expect($handler->shouldReport(new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string')))->toBeTrue();
+    })->with([
+        'scalar into scalar' => [['email' => 'jane@example.com'], ['email' => '']],
+        'string into int' => [['quantity' => '5'], ['quantity' => 1]],
+        'array into null' => [['tags' => ['a']], ['tags' => null]],
+        'array into array' => [['tags' => ['a']], ['tags' => [[], ['s' => 'arr']]]],
+        'unknown prop' => [['tags' => ['a']], []],
+        'nested key' => [['address.street' => ['a']], ['address' => 'x']],
+    ]);
+
+    it('keeps reporting unmatched exceptions on a forged update', function () {
+        $handler = hardenedHandler(livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => '']));
+
+        expect($handler->shouldReport(new RuntimeException('the database is actually on fire')))->toBeTrue();
+    });
+
+    it('asks the detector again once forged update detection is off', function () {
+        config()->set('bot-shield.exceptions.forged_updates', false);
+
+        $handler = hardenedHandler(livewireUpdateRequest('contact', ['email' => ['forged']], ['email' => '']));
+
+        expect($handler->shouldReport(new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string')))->toBeTrue();
+    });
+
+    it('ignores a snapshot it cannot read', function () {
+        $request = Request::create('/livewire/update', 'POST', [
+            'components' => [['snapshot' => 'nonsense', 'updates' => ['email' => ['forged']]], 'nonsense'],
+        ], [], [], ['HTTP_USER_AGENT' => BROWSER_AGENT]);
+
+        expect(hardenedHandler($request)->shouldReport(new TypeError('Argument #1 must be of type string, array given')))->toBeTrue();
+    });
 });
 
 describe('optional extras', function () {

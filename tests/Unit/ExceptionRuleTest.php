@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Request;
+use Livewire\Exceptions\MethodNotFoundException;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedMethodName;
 use Marshmallow\BotShield\Hardening\ExceptionRule;
 
 it('matches on the exception class alone when no needles are configured', function () {
@@ -75,3 +78,34 @@ it('only treats a literal true as always', function (mixed $value, bool $expecte
     'one' => [1, false],
     'absent' => [null, false],
 ]);
+
+it('requires the condition to accept the request when one is configured', function () {
+    $rule = ExceptionRule::fromArray(['class' => MethodNotFoundException::class, 'when' => ForgedMethodName::class]);
+    $request = Request::create('/livewire/update', 'POST');
+
+    expect($rule->matches(new MethodNotFoundException('(select 1)'), $request))->toBeTrue()
+        ->and($rule->matches(new MethodNotFoundException('save'), $request))->toBeFalse();
+});
+
+it('never matches a conditional rule without a request', function () {
+    $rule = ExceptionRule::fromArray(['class' => MethodNotFoundException::class, 'when' => ForgedMethodName::class]);
+
+    expect($rule->matches(new MethodNotFoundException('(select 1)')))->toBeFalse();
+});
+
+it('never matches when the condition is not an exception condition', function (mixed $when) {
+    $rule = ExceptionRule::fromArray(['class' => MethodNotFoundException::class, 'when' => $when]);
+    $request = Request::create('/livewire/update', 'POST');
+
+    expect($rule->matches(new MethodNotFoundException('(select 1)'), $request))->toBeFalse();
+})->with([
+    'unrelated class' => stdClass::class,
+    'missing class' => 'Vendor\\Package\\ClassThatIsNotInstalled',
+]);
+
+it('ignores a condition that is not a string', function () {
+    $rule = ExceptionRule::fromArray(['class' => RuntimeException::class, 'when' => ['nope']]);
+
+    expect($rule->when)->toBeNull()
+        ->and($rule->matches(new RuntimeException('anything')))->toBeTrue();
+});

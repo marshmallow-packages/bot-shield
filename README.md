@@ -197,7 +197,7 @@ class Handler extends ExceptionHandler
 }
 ```
 
-Either way, the malformed-Livewire exception set is no longer reported when the request came from a bot, and real browsers still report normally. Two shapes skip the bot check entirely: `CannotUpdateLockedPropertyException` and `CorruptComponentPayloadException` need a hand-edited request, which the normal UI never sends, and a headless browser presents a stock browser user agent, so asking the detector would let exactly that traffic through. Matched exceptions render as a client error rather than a 500, because malformed component state is never a server fault.
+Either way, the malformed-Livewire exception set is no longer reported when the request came from a bot, and real browsers still report normally. Bots usually send a stock browser user agent, so the request itself counts too: when an update sends an array to a prop the component snapshot holds as a string, number or boolean, the request is treated as forged and those rules skip the detector. A text input never sends an array. If a real form binds a checkbox group to a prop that starts out as a string, set `BOT_SHIELD_FORGED_UPDATES=false` (or fix the prop's initial value). Some shapes skip the bot check entirely, because they need a hand-edited request the normal UI never sends, and a headless browser presents a stock browser user agent, so asking the detector would let exactly that traffic through: `CannotUpdateLockedPropertyException`, `CorruptComponentPayloadException`, a `MethodNotFoundException` whose method name is not an identifier (such as `(select 1)`; a plain typo still reports, though Livewire 4.4+ itself stops reporting every `MethodNotFoundException` and answers 419 outside debug mode), and a `CannotMutateReactivePropException` for a prop the request's own `updates` name on that component (a component mutating its own reactive prop is a real bug and still reports). Matched exceptions render as a client error rather than a 500, because malformed component state is never a server fault.
 
 > Two Livewire exceptions, `CorruptComponentPayloadException` and `CannotUpdateLockedPropertyException`, define their own `render()` method and answer 419 in production. Laravel consults an exception's own `render()` before any package callback, so those keep their 419. That is still a client error rather than a 500, which is the point.
 
@@ -210,11 +210,12 @@ Add your own patterns without waiting for a release:
         ['class' => YourVendor\SomeException::class],
         ['class' => TypeError::class, 'contains' => ['must be of type']],
         ['class' => YourVendor\TamperedStateException::class, 'always' => true],
+        ['class' => YourVendor\ProbeException::class, 'when' => App\Hardening\ProbedRequest::class],
     ],
 ],
 ```
 
-Each rule matches when the exception, or any exception it wraps (`getPrevious()`), is an instance of `class` and its message contains every needle in `contains`, so an error Blade rethrows as a `ViewException` still matches. `always => true` suppresses the match without asking the detector: reserve it for exceptions the normal UI cannot produce, because it also hides them for real browsers.
+Each rule matches when the exception, or any exception it wraps (`getPrevious()`), is an instance of `class` and its message contains every needle in `contains`, so an error Blade rethrows as a `ViewException` still matches. `always => true` suppresses the match without asking the detector: reserve it for exceptions the normal UI cannot produce, because it also hides them for real browsers. `when` names a class implementing `Marshmallow\BotShield\Contracts\ExceptionCondition`, whose `matches(Throwable $exception, Request $request): bool` must also accept the request, for shapes the class and message alone cannot tell apart.
 
 ## Agent rules
 
@@ -621,6 +622,7 @@ Two features read as on but do nothing until you act: exception hardening needs 
 | Feature | Default | Also needs | Toggle |
 | --- | --- | --- | --- |
 | Livewire exception suppression | on | `BotShield::handles()` or the trait | `BOT_SHIELD_EXCEPTIONS_ENABLED` |
+| Treat array-into-scalar updates as forged | on | exception suppression | `BOT_SHIELD_FORGED_UPDATES` |
 | Transient database error suppression | **off** | | `BOT_SHIELD_TRANSIENT_ERRORS_ENABLED` |
 | Custom 4xx suppression | **off** | `exceptions.client_errors.classes` | `BOT_SHIELD_CLIENT_ERRORS_ENABLED` |
 | Agent allow and block rules | on, ~40 rules | | `agents.rules`, config only |

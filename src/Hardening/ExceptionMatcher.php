@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Marshmallow\BotShield\Hardening;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Http\Request;
 use Throwable;
 
 final class ExceptionMatcher
@@ -13,18 +14,18 @@ final class ExceptionMatcher
         private readonly Repository $config,
     ) {}
 
-    public function matchesBotNoise(Throwable $exception): bool
+    public function matchesBotNoise(Throwable $exception, ?Request $request = null): bool
     {
-        return $this->matchesAny($exception, 'bot-shield.exceptions.rules');
+        return $this->matchesAny($exception, 'bot-shield.exceptions.rules', $request);
     }
 
     /**
      * Bot noise that needs no detector verdict, see ExceptionRule::$always.
      */
-    public function matchesUnconditionalBotNoise(Throwable $exception): bool
+    public function matchesUnconditionalBotNoise(Throwable $exception, ?Request $request = null): bool
     {
         foreach ($this->rules('bot-shield.exceptions.rules') as $rule) {
-            if ($rule->always && $rule->matches($exception)) {
+            if ($rule->always && $rule->matches($exception, $request)) {
                 return true;
             }
         }
@@ -37,10 +38,10 @@ final class ExceptionMatcher
         return $this->matchesAny($exception, 'bot-shield.exceptions.transient_errors.rules');
     }
 
-    private function matchesAny(Throwable $exception, string $configKey): bool
+    private function matchesAny(Throwable $exception, string $configKey, ?Request $request = null): bool
     {
         foreach ($this->rules($configKey) as $rule) {
-            if ($rule->matches($exception)) {
+            if ($rule->matches($exception, $request)) {
                 return true;
             }
         }

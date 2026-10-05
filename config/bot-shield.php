@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Database\QueryException;
 use Livewire\Exceptions\ComponentNotFoundException;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Features\SupportReactiveProps\CannotMutateReactivePropException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedMethodName;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedReactivePropUpdate;
 
 return [
 
@@ -396,8 +400,17 @@ return [
         'status' => 422,
 
         /*
+        | Treat a request that sends an array to a prop its snapshot holds as a
+        | scalar as forged, so the rules below skip the detector for it. Bots
+        | send browser user agents; a text input never sends an array. Turn it
+        | off if a real form binds checkboxes to a prop that starts as a string.
+        */
+        'forged_updates' => env('BOT_SHIELD_FORGED_UPDATES', true),
+
+        /*
         | Each rule matches when the exception, or one it wraps, is an instance
         | of "class" and its message contains every needle in "contains".
+        | "when" names an ExceptionCondition that must also accept the request.
         | "always" suppresses without asking the detector: only for shapes the
         | normal UI cannot produce, since headless browsers pass as browsers.
         | Add your own rules here without waiting for a package release.
@@ -406,9 +419,15 @@ return [
             ['class' => CannotUpdateLockedPropertyException::class, 'always' => true],
             ['class' => ComponentNotFoundException::class],
             ['class' => CorruptComponentPayloadException::class, 'always' => true],
+            ['class' => MethodNotFoundException::class, 'when' => ForgedMethodName::class, 'always' => true],
+            ['class' => CannotMutateReactivePropException::class, 'when' => ForgedReactivePropUpdate::class, 'always' => true],
             ['class' => TypeError::class, 'contains' => ['must be of type']],
             ['class' => TypeError::class, 'contains' => ['Cannot assign', 'to property']],
             ['class' => ErrorException::class, 'contains' => ['Trying to access array offset on']],
+            ['class' => ErrorException::class, 'contains' => ['Attempt to read property', 'on array']],
+            ['class' => TypeError::class, 'contains' => ['Cannot access offset of type array']],
+            ['class' => Error::class, 'contains' => ['Call to a member function', 'on array']],
+            ['class' => Error::class, 'contains' => ['First array member is not a valid class name or object']],
         ],
 
         /*
