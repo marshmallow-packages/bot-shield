@@ -44,6 +44,21 @@ function hardenedHandler(?Request $request = null): Handler
     return $handler;
 }
 
+/**
+ * Lets PHP itself produce the exception, so the rules are pinned to the real
+ * engine message rather than a hand-typed copy.
+ */
+function thrownBy(Closure $code, mixed $argument): Throwable
+{
+    try {
+        $code($argument);
+    } catch (Throwable $exception) {
+        return $exception;
+    }
+
+    throw new RuntimeException('Expected the code to throw.');
+}
+
 function transientQueryException(string $message): QueryException
 {
     return new QueryException('mysql', 'select 1', [], new RuntimeException($message));
@@ -61,6 +76,10 @@ describe('report suppression', function () {
         'typed property hydration' => fn () => new TypeError('Cannot assign array to property App\Livewire\Contact::$email of type string'),
         'argument type' => fn () => new TypeError('App\Livewire\Contact::setEmail(): Argument #1 ($email) must be of type string, array given'),
         'array offset on null' => fn () => new ErrorException('Trying to access array offset on value of type null'),
+        'property read on array' => fn () => new ErrorException('Attempt to read property "title" on array'),
+        'array used as offset' => fn () => thrownBy(fn (array $offset): mixed => ['x'][$offset], ['y']),
+        'method call on array' => fn () => thrownBy(fn (mixed $value): mixed => $value->reverseStructure(), ['x']),
+        'array callable from a forged prop' => fn () => thrownBy(fn (mixed $callable): mixed => $callable(), [[1], 'handle']),
     ]);
 
     it('still reports matched exceptions from real browsers', function () {
@@ -317,6 +336,7 @@ describe('forged update types', function () {
         'typed property' => fn () => new TypeError('Cannot assign array to property App\\Livewire\\Contact::$email of type string'),
         'wrapped by a view' => fn () => new ViewException('htmlspecialchars(): Argument #1 ($string) must be of type string, array given', 0, 1, __FILE__, __LINE__, new TypeError('htmlspecialchars(): Argument #1 ($string) must be of type string, array given')),
         'array offset' => fn () => new ErrorException('Trying to access array offset on value of type int'),
+        'method call on array' => fn () => thrownBy(fn (mixed $value): mixed => $value->reverseStructure(), ['x']),
     ]);
 
     it('keeps reporting browsers whose updates match the snapshot types', function (array $updates, array $data) {

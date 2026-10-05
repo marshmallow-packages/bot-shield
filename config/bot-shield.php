@@ -424,6 +424,10 @@ return [
             ['class' => TypeError::class, 'contains' => ['must be of type']],
             ['class' => TypeError::class, 'contains' => ['Cannot assign', 'to property']],
             ['class' => ErrorException::class, 'contains' => ['Trying to access array offset on']],
+            ['class' => ErrorException::class, 'contains' => ['Attempt to read property', 'on array']],
+            ['class' => TypeError::class, 'contains' => ['Cannot access offset of type array']],
+            ['class' => Error::class, 'contains' => ['Call to a member function', 'on array']],
+            ['class' => Error::class, 'contains' => ['First array member is not a valid class name or object']],
         ],
 
         /*
