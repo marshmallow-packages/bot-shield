@@ -1,0 +1,27 @@
+version: 2
+
+updates:
+    - package-ecosystem: "composer"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      target-branch: "develop"
+      versioning-strategy: "increase-if-necessary"
+      open-pull-requests-limit: 10
+      groups:
+          composer-dependencies:
+              patterns: ["*"]
+      # Majors widen the support matrix, so they are applied deliberately.
+      ignore:
+          - dependency-name: "*"
+            update-types: ["version-update:semver-major"]
+
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      target-branch: "develop"
+      open-pull-requests-limit: 10
+      groups:
+          github-actions:
+              patterns: ["*"]
