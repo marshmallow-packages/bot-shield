@@ -1,6 +1,39 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.2.0...HEAD)
+
+## [v1.2.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...v1.2.0) - 2026-10-05
+
+### Added
+
+- The detector-gated exception rules no longer depend on the user agent alone: a Livewire update that sends an array to a prop the snapshot holds as a scalar marks the request as forged, so the matched exception is not reported. Toggle with `exceptions.forged_updates` (`BOT_SHIELD_FORGED_UPDATES`, on by default).
+- New detector-gated rules for the shapes forged array updates produce: `Attempt to read property ... on array`, `Cannot access offset of type array`, `Call to a member function ... on array`, and `First array member is not a valid class name or object`.
+- Exception rules accept a `when` condition: a class implementing `ExceptionCondition` that must also accept the request.
+- `MethodNotFoundException` is suppressed and answers a client error, whatever the user agent, when the called method name is not an identifier (forged `calls`, such as SQL injection probes). A typo in a real method name still reports.
+- `CannotMutateReactivePropException` is suppressed and answers a client error, whatever the user agent, when the request's own `updates` name that prop on that component. A component mutating its own reactive prop still reports.
+
+### Upgrading
+
+`bot-shield:install` publishes `config/bot-shield.php`, and a published `exceptions.rules` list replaces the package defaults rather than merging with them. The new rules therefore do nothing on an existing install until you add them to your published config:
+
+```php
+use Livewire\Exceptions\MethodNotFoundException;
+use Livewire\Features\SupportReactiveProps\CannotMutateReactivePropException;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedMethodName;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedReactivePropUpdate;
+
+'rules' => [
+    // ...your existing rules
+    ['class' => MethodNotFoundException::class, 'when' => ForgedMethodName::class, 'always' => true],
+    ['class' => CannotMutateReactivePropException::class, 'when' => ForgedReactivePropUpdate::class, 'always' => true],
+    ['class' => ErrorException::class, 'contains' => ['Attempt to read property', 'on array']],
+    ['class' => TypeError::class, 'contains' => ['Cannot access offset of type array']],
+    ['class' => Error::class, 'contains' => ['Call to a member function', 'on array']],
+    ['class' => Error::class, 'contains' => ['First array member is not a valid class name or object']],
+],
+
+```
+Forged update detection is on without any config change, because a missing `exceptions.forged_updates` key counts as on. To be able to switch it off with `BOT_SHIELD_FORGED_UPDATES=false`, also add `'forged_updates' => env('BOT_SHIELD_FORGED_UPDATES', true),` to the `exceptions` block of your published config.
 
 ## [v1.1.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.0...v1.1.1) - 2026-10-01
 
