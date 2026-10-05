@@ -93,11 +93,11 @@ final class ExceptionHardening
             return false;
         }
 
-        if (! $this->matcher->matchesBotNoise($exception)) {
+        if (! $this->matcher->matchesBotNoise($exception, $request)) {
             return false;
         }
 
-        if ($this->matcher->matchesUnconditionalBotNoise($exception)) {
+        if ($this->matcher->matchesUnconditionalBotNoise($exception, $request)) {
             return true;
         }
 
@@ -118,7 +118,7 @@ final class ExceptionHardening
             return null;
         }
 
-        if (! $this->matcher->matchesBotNoise($exception)) {
+        if (! $this->matcher->matchesBotNoise($exception, $request)) {
             return null;
         }
 
