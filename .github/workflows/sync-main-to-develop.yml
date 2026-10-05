@@ -1,0 +1,93 @@
+name: Sync main into develop
+
+# Git-flow back-merge. Anything that lands on main (a hotfix, a release, a PR
+# that targeted main directly) must also reach develop, or develop is behind
+# main and the next release re-applies or conflicts with it. Doing that by hand
+# is the step everyone forgets - so do it here.
+#
+# Fast path: merge main into develop and push. If develop is protected or the
+# merge conflicts, fall back to opening a PR so a human resolves it.
+#
+# No loop risk: pushes made with GITHUB_TOKEN do not trigger workflows, and this
+# one only fires on main anyway.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-main-to-develop
+  cancel-in-progress: false
+
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Merge main into develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if ! git show-ref --verify --quiet refs/remotes/origin/develop; then
+            echo "No origin/develop in this repo - nothing to back-merge."
+            exit 0
+          fi
+
+          if [ -z "$(git rev-list origin/develop..origin/main)" ]; then
+            echo "develop already contains every commit on main - nothing to do."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B develop origin/develop
+
+          if git merge --no-edit origin/main; then
+            if git push origin develop; then
+              echo "Merged main into develop and pushed."
+              exit 0
+            fi
+            echo "::warning::Merge was clean but the push to develop was rejected (branch protection?) - opening a PR instead."
+          else
+            git merge --abort || true
+            echo "::warning::main does not merge cleanly into develop - opening a PR for manual resolution."
+          fi
+
+          BRANCH="chore/sync-main-to-develop-${GITHUB_SHA::7}"
+          git checkout -B "$BRANCH" origin/main
+          git push --force-with-lease origin "$BRANCH"
+
+          # An open PR from a previous run covers this too - do not stack them.
+          if [ -n "$(gh pr list --base develop --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            echo "A sync PR for this commit is already open."
+            exit 0
+          fi
+
+          cat > /tmp/pr-body.md <<'BODY'
+          Automated git-flow back-merge: commits on `main` that `develop` is missing.
+
+          Opened because the automatic merge could not be pushed - either `develop`
+          is protected, or `main` does not merge cleanly into it. Resolve and merge,
+          so `develop` is not left behind `main`.
+
+          Merge this with a **merge commit**, not a squash: squashing rewrites the
+          commits and leaves `develop` diverged from `main` all over again.
+          BODY
+
+          gh pr create \
+            --base develop \
+            --head "$BRANCH" \
+            --title "chore: sync main into develop" \
+            --body-file /tmp/pr-body.md
