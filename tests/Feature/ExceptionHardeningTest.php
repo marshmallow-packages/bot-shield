@@ -7,9 +7,12 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\ViewException;
 use Livewire\Exceptions\ComponentNotFoundException;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Features\SupportReactiveProps\CannotMutateReactivePropException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
 use Marshmallow\BotShield\Facades\BotShield;
 use Marshmallow\BotShield\Tests\Fixtures\ApiClientException;
@@ -207,6 +210,89 @@ describe('client error rendering', function () {
         'corrupt payload' => fn () => new CorruptComponentPayloadException,
         'locked property' => fn () => new CannotUpdateLockedPropertyException('email'),
     ]);
+});
+
+/**
+ * @param  array<string, mixed>  $updates
+ */
+function livewireUpdateRequest(string $component, array $updates, string $userAgent = BROWSER_AGENT): Request
+{
+    $snapshot = json_encode(['data' => [], 'memo' => ['id' => 'abc', 'name' => $component], 'checksum' => 'x']);
+
+    return Request::create('/livewire/update', 'POST', [
+        'components' => [['snapshot' => $snapshot, 'updates' => $updates, 'calls' => []]],
+    ], [], [], ['HTTP_USER_AGENT' => $userAgent]);
+}
+
+describe('forged livewire requests', function () {
+    it('suppresses and renders method names no template can produce, even for browsers', function (string $method) {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+        $exception = new MethodNotFoundException($method);
+
+        expect($handler->shouldReport($exception))->toBeFalse()
+            ->and($handler->render(incomingRequest(userAgent: BROWSER_AGENT), $exception)->getStatusCode())->toBe(422);
+    })->with([
+        'sql probe' => '(select 198766*667891)',
+        'variable probe' => '@@PStu1',
+        'empty' => '',
+        'quote' => "save'",
+    ]);
+
+    it('keeps reporting a method name that is a plain typo', function (string $method) {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+        $exception = new MethodNotFoundException($method);
+
+        expect($handler->shouldReport($exception))->toBeTrue()
+            ->and($handler->render(incomingRequest(userAgent: BROWSER_AGENT), $exception)->getStatusCode())->toBe(500);
+    })->with([
+        'typo' => 'submitForm',
+        'magic action' => '$refresh',
+        'parent call' => '$parent.close',
+    ]);
+
+    it('suppresses a reactive prop mutation the request itself forged', function (string $key) {
+        $request = livewireUpdateRequest('product-card', [$key => ['forged']]);
+        $handler = hardenedHandler($request);
+        $exception = new CannotMutateReactivePropException('product-card', 'product');
+
+        expect($handler->shouldReport($exception))->toBeFalse()
+            ->and($handler->render($request, $exception)->getStatusCode())->toBe(422);
+    })->with([
+        'exact key' => 'product',
+        'nested key' => 'product.title',
+    ]);
+
+    it('keeps reporting a reactive prop the component mutated itself', function (array $updates, string $component) {
+        $request = livewireUpdateRequest($component, $updates);
+        $handler = hardenedHandler($request);
+        $exception = new CannotMutateReactivePropException('product-card', 'product');
+
+        expect($handler->shouldReport($exception))->toBeTrue()
+            ->and($handler->render($request, $exception)->getStatusCode())->toBe(500);
+    })->with([
+        'no updates' => [[], 'product-card'],
+        'other prop' => [['quantity' => 2], 'product-card'],
+        'prefix only' => [['productId' => 2], 'product-card'],
+        'other component' => [['product' => ['forged']], 'cart'],
+    ]);
+
+    it('keeps forged calls out of the log through the real report flow', function () {
+        $handler = hardenedHandler(incomingRequest(userAgent: BROWSER_AGENT));
+        Log::spy();
+
+        $handler->report(new MethodNotFoundException('(select 1)'));
+        Log::shouldNotHaveReceived('error');
+
+        $handler->report(new MethodNotFoundException('submitFrom'));
+        Log::shouldHaveReceived('error')->once();
+    });
+
+    it('keeps reporting a reactive prop mutation when the payload is unreadable', function () {
+        $request = Request::create('/livewire/update', 'POST', ['components' => 'nonsense'], [], [], ['HTTP_USER_AGENT' => BROWSER_AGENT]);
+        $handler = hardenedHandler($request);
+
+        expect($handler->shouldReport(new CannotMutateReactivePropException('product-card', 'product')))->toBeTrue();
+    });
 });
 
 describe('optional extras', function () {

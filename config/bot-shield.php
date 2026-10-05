@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Database\QueryException;
 use Livewire\Exceptions\ComponentNotFoundException;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Features\SupportReactiveProps\CannotMutateReactivePropException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedMethodName;
+use Marshmallow\BotShield\Hardening\Conditions\ForgedReactivePropUpdate;
 
 return [
 
@@ -398,6 +402,7 @@ return [
         /*
         | Each rule matches when the exception, or one it wraps, is an instance
         | of "class" and its message contains every needle in "contains".
+        | "when" names an ExceptionCondition that must also accept the request.
         | "always" suppresses without asking the detector: only for shapes the
         | normal UI cannot produce, since headless browsers pass as browsers.
         | Add your own rules here without waiting for a package release.
@@ -406,6 +411,8 @@ return [
             ['class' => CannotUpdateLockedPropertyException::class, 'always' => true],
             ['class' => ComponentNotFoundException::class],
             ['class' => CorruptComponentPayloadException::class, 'always' => true],
+            ['class' => MethodNotFoundException::class, 'when' => ForgedMethodName::class, 'always' => true],
+            ['class' => CannotMutateReactivePropException::class, 'when' => ForgedReactivePropUpdate::class, 'always' => true],
             ['class' => TypeError::class, 'contains' => ['must be of type']],
             ['class' => TypeError::class, 'contains' => ['Cannot assign', 'to property']],
             ['class' => ErrorException::class, 'contains' => ['Trying to access array offset on']],
