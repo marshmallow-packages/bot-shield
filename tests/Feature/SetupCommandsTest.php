@@ -7,6 +7,7 @@ use Illuminate\Contracts\Translation\Loader;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Facade;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Marshmallow\BotShield\Hardening\ExceptionHardening;
 use Marshmallow\BotShield\Installation\Installer;
@@ -113,6 +114,15 @@ describe('bot-shield:doctor', function () {
      * false positive, and it inflates the "worth a look" count that people use
      * to decide whether to read the rest.
      */
+    it('warns when the events table predates the context column', function () {
+        Schema::table('bot_shield_events', function ($table): void {
+            $table->dropColumn('context');
+        });
+
+        $this->artisan('bot-shield:doctor')
+            ->expectsOutputToContain('context column');
+    });
+
     it('recognises a scheduled model:prune', function () {
         app(Schedule::class)->command('model:prune')->daily();
 

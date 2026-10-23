@@ -16,6 +16,9 @@ final readonly class CaptchaVerdict
         public ?float $score = null,
         public ?float $threshold = null,
         public array $errorCodes = [],
+        public ?string $hostname = null,
+        public ?string $action = null,
+        public ?int $tokenAge = null,
     ) {}
 
     public static function skipped(): self
@@ -23,9 +26,14 @@ final readonly class CaptchaVerdict
         return new self(CaptchaOutcome::Skipped);
     }
 
-    public static function passed(?float $score = null, ?float $threshold = null): self
-    {
-        return new self(CaptchaOutcome::Passed, $score, $threshold);
+    public static function passed(
+        ?float $score = null,
+        ?float $threshold = null,
+        ?string $hostname = null,
+        ?string $action = null,
+        ?int $tokenAge = null,
+    ): self {
+        return new self(CaptchaOutcome::Passed, $score, $threshold, [], $hostname, $action, $tokenAge);
     }
 
     public function passes(): bool
@@ -56,6 +64,27 @@ final readonly class CaptchaVerdict
             'score' => $this->score,
             'threshold' => $this->threshold,
             'error_codes' => $this->errorCodes,
+            'hostname' => $this->hostname,
+            'action' => $this->action,
+            'token_age' => $this->tokenAge,
         ];
+    }
+
+    /**
+     * What the provider said beyond the outcome and score, for the event row.
+     * Empty when there is nothing to say, so a skipped or missing token
+     * verification stores no context at all.
+     *
+     * @return array<string, mixed>
+     */
+    public function diagnostics(): array
+    {
+        return array_filter([
+            'error_codes' => $this->errorCodes === [] ? null : $this->errorCodes,
+            'hostname' => $this->hostname,
+            'action' => $this->action,
+            'token_age' => $this->tokenAge,
+            'threshold' => $this->threshold,
+        ], static fn (mixed $value): bool => $value !== null);
     }
 }

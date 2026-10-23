@@ -36,10 +36,24 @@ final class EventRecorder implements RecordsEvents
             return;
         }
 
+        $row = $this->attributesFor($type, $outcome, $attributes);
+
         try {
-            BotShieldEvent::query()->create($this->attributesFor($type, $outcome, $attributes));
+            BotShieldEvent::query()->create($row);
         } catch (Throwable) {
-            // The structured log channel remains the durable record.
+            // A site that updated the package but not its migrations has no
+            // context column yet; the row is worth more than the context.
+            if (! array_key_exists('context', $row)) {
+                return;
+            }
+
+            unset($row['context']);
+
+            try {
+                BotShieldEvent::query()->create($row);
+            } catch (Throwable) {
+                // The structured log channel remains the durable record.
+            }
         }
     }
 

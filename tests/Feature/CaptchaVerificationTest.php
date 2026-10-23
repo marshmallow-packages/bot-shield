@@ -102,6 +102,33 @@ describe('the score based driver', function () {
         app(CaptchaManager::class)->verify('token', captchaRequest());
     });
 
+    it('logs a failed verification as a warning, so a stricter log level keeps it', function () {
+        Log::spy();
+
+        fakeSiteverify(['success' => false, 'error-codes' => ['timeout-or-duplicate'], 'hostname' => 'example.test']);
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        Log::shouldNotHaveReceived('info');
+        Log::shouldHaveReceived('warning')
+            ->withArgs(function (string $message, array $context): bool {
+                return $context['outcome'] === 'failed'
+                    && $context['error_codes'] === ['timeout-or-duplicate']
+                    && $context['hostname'] === 'example.test';
+            })
+            ->once();
+    });
+
+    it('logs a low score as a warning too', function () {
+        Log::spy();
+
+        fakeSiteverify(['success' => true, 'score' => 0.1]);
+
+        app(CaptchaManager::class)->verify('token', captchaRequest());
+
+        Log::shouldHaveReceived('warning')->once();
+    });
+
     it('logs every verification with its score', function () {
         Log::spy();
 
@@ -239,7 +266,8 @@ describe('when the provider cannot be reached', function () {
 
         app(CaptchaManager::class)->verify('token', captchaRequest());
 
-        Log::shouldHaveReceived('info')
+        // An outage is a refusal from the visitor's side, so it is a warning too.
+        Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $context['outcome'] === 'unavailable')
             ->once();
     });
