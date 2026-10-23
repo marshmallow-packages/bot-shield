@@ -168,6 +168,10 @@ BOT_SHIELD_RECAPTCHA_SCORE=0.6
 
 Drivers are `google-v3`, `google-v2` and `null`. Leaving the keys empty disables the captcha: nothing renders and nothing is verified, so a site without keys is never punished. `captcha.report_outages` reports an unreachable provider to the error tracker, off by default because an outage means one report per attempt. Set `captcha.hide_badge` to hide the corner badge, which also renders Google's required notice because hiding it without the notice breaks their terms; `captcha.show_terms` renders that notice on its own. `captcha.badge` moves the badge instead of hiding it, `bottomright`, `bottomleft` or `inline`, and reaches the invisible v2 widget only. All three can be overridden per tag with `hide-badge` and `badge`.
 
+Give each form its own `action` (`<x-bot-shield::recaptcha action="contact" />`) so `bot-shield:scores` can group by it. Use letters, slashes and underscores only: Google rejects a dash or a digit on the client and the widget then never produces a token. The package throws on an invalid name in `local` and `testing`, and rewrites it with underscores elsewhere.
+
+The notice renders where the widget sits. To keep the widget at the top of the form and the notice next to the submit button, pass `terms="false"` to the widget and render `<x-bot-shield::recaptcha-terms class="text-xs" />` where the notice belongs. The notice is required on every page where the badge is hidden, so `terms="false"` is a promise to render it elsewhere on that page.
+
 When the provider is unreachable the submission is refused. Set `captcha.fail_open` to `true` only if losing genuine leads is the worse cost for that site.
 
 ### 6. Add agent rules
@@ -193,7 +197,7 @@ One ordered list in `config/bot-shield.php`, evaluated before any detector, firs
 
 Keep search engines on `block`, not `deny`, so they keep crawling pages while never submitting a form.
 
-Patterns are case-insensitive substrings unless `regex` is true. A malformed rule is discarded rather than allowed to break requests, and `bot-shield:doctor` reports any it dropped.
+Patterns are case-insensitive substrings unless `regex` is true. A malformed rule is discarded rather than allowed to break requests, and `bot-shield:doctor` reports any it dropped. A published `agents.rules` list replaces the defaults, so copy the package rules you want to keep, including the last one that blocks a truncated `Mozilla/5.0 (...)` user agent.
 
 ### 7. Register middleware when wanted
 
