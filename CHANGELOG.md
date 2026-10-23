@@ -1,7 +1,34 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.2.0...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.3.0...HEAD)
 
+## [v1.3.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.2.0...v1.3.0) - 2026-10-23
+
+### Added
+
+- `<x-bot-shield::recaptcha-terms />` renders the reCAPTCHA notice on its own, merging any `class` you pass, and the widget takes `terms="false"` (`['terms' => false]` on the directive) to leave the notice out. The widget can stay at the top of the form while the notice sits next to the submit button, instead of above the fields.
+- A default agent rule that blocks a truncated browser user agent: `Mozilla/5.0 (...)` with nothing after the platform or engine token, which the `user-agent` detector would otherwise trust.
+
+### Changed
+
+- An `action` Google would reject (anything outside `A-Za-z/_`) throws in `local` and `testing`, and is rewritten with underscores in every other environment, instead of leaving the widget without a token and every submission failing as a robot with nothing logged.
+- Google's script and the hide-badge style render once per page however many widgets it carries, and the script is added through a guard so a Livewire update cannot load it a second time.
+- `ProtectsAgainstSpam` accepts a nullable `?HoneypotData` property, and names the property when it was never assigned instead of claiming it is missing.
+
+### Fixed
+
+- A tag with `:hide-badge="false"` on a site that hides the badge globally no longer renders the notice next to its visible badge. `show_terms` still forces the notice on every form.
+
+### Upgrading
+
+- A form that passed an action with a dash, space or digit now throws in `local` and `testing`. Rename it to letters, slashes and underscores: the token the widget produced before was never accepted anyway.
+- A published `agents.rules` list replaces the package defaults, so add the truncated user agent rule to your published config if you want it:
+
+```php
+['pattern' => '/^Mozilla\/\d\.\d \([^)]*\)(?: AppleWebKit\/[\d.]+)?$/', 'action' => 'block', 'regex' => true],
+
+```
+- Published views (`--tag=bot-shield-views`): the three widget views now `@include('bot-shield::recaptcha.script')` in place of the script tag, `hide-badge.blade.php` wraps its style in `@once`, and `terms.blade.php` takes an optional `$termsClass`. Republish, or merge those changes into your copies; an unchanged published copy keeps working as it did.
 
 ## [v1.2.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...v1.2.0) - 2026-10-05
 
@@ -32,6 +59,7 @@ use Marshmallow\BotShield\Hardening\Conditions\ForgedReactivePropUpdate;
     ['class' => Error::class, 'contains' => ['Call to a member function', 'on array']],
     ['class' => Error::class, 'contains' => ['First array member is not a valid class name or object']],
 ],
+
 
 ```
 Forged update detection is on without any config change, because a missing `exceptions.forged_updates` key counts as on. To be able to switch it off with `BOT_SHIELD_FORGED_UPDATES=false`, also add `'forged_updates' => env('BOT_SHIELD_FORGED_UPDATES', true),` to the `exceptions` block of your published config.
