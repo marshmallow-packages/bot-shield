@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Marshmallow\BotShield\Captcha;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Contracts\View\View;
+use InvalidArgumentException;
 
 /**
  * Chooses and renders the client side markup. Shared by the blade component and
@@ -18,6 +20,7 @@ final class CaptchaRenderer
         private readonly CaptchaManager $captcha,
         private readonly Repository $config,
         private readonly ViewFactory $views,
+        private readonly Application $app,
     ) {}
 
     /**
@@ -72,12 +75,66 @@ final class CaptchaRenderer
             'theme' => $this->option($options, 'theme', 'bot-shield.captcha.theme', 'light'),
             'size' => $this->size($options),
             'locale' => $this->option($options, 'locale', 'bot-shield.captcha.locale', ''),
-            'action' => $this->stringOption($options, 'action', 'submit'),
+            'action' => $this->action($options),
             'property' => $this->stringOption($options, 'property', ''),
             'badge' => $this->option($options, 'badge', 'bot-shield.captcha.badge', 'bottomright'),
             'hideBadge' => $hideBadge,
-            'showTerms' => $hideBadge || $this->captcha->showsTerms(),
+            'showTerms' => $this->showTerms($options, $hideBadge),
         ];
+    }
+
+    /**
+     * Google refuses any action name outside A-Za-z/_ and the widget then never
+     * produces a token, so every submission fails as a robot without a single
+     * error on the server. Rewriting the name keeps a live form working; the
+     * exception keeps the mistake from reaching production in the first place.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    private function action(array $options): string
+    {
+        $action = $this->stringOption($options, 'action', 'submit');
+
+        if (preg_match('/^[A-Za-z\/_]+$/', $action) === 1) {
+            return $action;
+        }
+
+        $rewritten = (string) preg_replace('/[^A-Za-z\/_]/', '_', $action);
+
+        if ($this->app->environment('local', 'testing')) {
+            throw new InvalidArgumentException(sprintf(
+                'The reCAPTCHA action "%s" is not valid: Google accepts letters, slashes and underscores only (A-Za-z/_). Use "%s" instead.',
+                $action,
+                $rewritten,
+            ));
+        }
+
+        return $rewritten;
+    }
+
+    /**
+     * A tag decides for itself; otherwise the notice compensates for a hidden
+     * badge, or renders because the site asked for it on its own.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    private function showTerms(array $options, bool $hideBadge): bool
+    {
+        $value = $options['terms'] ?? $options['showTerms'] ?? null;
+
+        if ($value !== null) {
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+        }
+
+        if ($hideBadge) {
+            return true;
+        }
+
+        return filter_var(
+            $this->config->get('bot-shield.captcha.show_terms', false),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE,
+        ) === true;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Marshmallow\BotShield\Honeypot\SpatieHoneypotConfigurator;
+use Marshmallow\BotShield\Tests\Fixtures\NullableSpamProtectedComponent;
 use Marshmallow\BotShield\Tests\Fixtures\SpamProtectedComponent;
 use Marshmallow\BotShield\Tests\Fixtures\UnprotectedSpamComponent;
 use Spatie\Honeypot\Events\SpamDetectedEvent;
@@ -167,6 +168,32 @@ describe('the spam protection trait', function () {
     it('explains what is missing when the component has no honeypot data', function () {
         expect(fn () => (new UnprotectedSpamComponent)->submit())
             ->toThrow(RuntimeException::class, 'needs a public');
+    });
+
+    it('accepts a nullable honeypot data property', function () {
+        $component = new NullableSpamProtectedComponent;
+        $component->mount();
+
+        $this->travel(5)->seconds();
+
+        $component->submit();
+
+        expect($component->submitted)->toBeTrue();
+    });
+
+    it('still refuses spam through a nullable honeypot data property', function () {
+        $component = new NullableSpamProtectedComponent;
+        $component->mount();
+        $component->honeypotData->contact_reference = 'a bot wrote here';
+
+        $this->travel(5)->seconds();
+
+        expect(fn () => $component->submit())->toThrow(HttpException::class);
+    });
+
+    it('explains what to do when the honeypot data was never assigned', function () {
+        expect(fn () => (new NullableSpamProtectedComponent)->submit())
+            ->toThrow(RuntimeException::class, 'is null');
     });
 
     it('carries the honeypot data across a livewire round trip', function () {

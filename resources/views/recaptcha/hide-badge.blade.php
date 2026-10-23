@@ -1,15 +1,18 @@
 {{--
     Google allows the badge to be hidden only while the reCAPTCHA notice is
     visible, so the notice is rendered alongside this whether or not
-    "show_terms" is on.
+    "show_terms" is on, unless the tag opted out with terms="false" to place
+    <x-bot-shield::recaptcha-terms /> itself.
 
     Visibility rather than display: taking the badge out of the layout stops the
     widget from working. The !important is required, not defensive, because
     Google sets visibility on the badge in an inline style attribute and nothing
     short of !important overrides that.
 --}}
+@once
 <style>
     .grecaptcha-badge {
         visibility: hidden !important;
     }
 </style>
+@endonce

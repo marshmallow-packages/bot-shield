@@ -69,7 +69,7 @@
     @include('bot-shield::recaptcha.hide-badge')
 @endif
 
-<script src="{{ $scriptUrl }}" async defer></script>
+@include('bot-shield::recaptcha.script')
 
 @if($showTerms)
     @include('bot-shield::recaptcha.terms')
