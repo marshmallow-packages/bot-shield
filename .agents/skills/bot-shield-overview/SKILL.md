@@ -9,13 +9,13 @@ description: Orient in the marshmallow/bot-shield repo - what it is, how the pie
 
 ## How the pieces fit
 
-- **`src/`** - the package. `BotShieldServiceProvider` is the single wiring point (config merge, publish tags, migrations, views, translations, commands, routes, middleware). `BotShield` is the entry class behind the `BotShield` facade.
+- **`src/`** - the package. `BotShieldServiceProvider` is the single wiring point (config merge, publish tags, migrations, views, translations, commands, routes, middleware). `BotShield` is the entry class behind the `BotShield` facade. Blade components live in `src/View/Components` (`honeypot`, `recaptcha`, `recaptcha-terms`) and share `CaptchaRenderer` with the `@botShieldRecaptcha` directive, so widget behaviour changes in the renderer and the views under `resources/views/recaptcha`, never in the component alone.
 - **Publishable resources** - `config/bot-shield.php`, `database/migrations/`, `resources/views/`, `lang/`. Each has its own `bot-shield-*` publish tag plus the umbrella `bot-shield` tag; the README documents every tag and must stay in sync.
 - **`tests/`** - Pest 4 on Orchestra Testbench. `TestCase` boots the package provider; `ArchTest` enforces architectural rules; type coverage is gated at 100%.
 - **`workbench/`** - the throwaway host app (models, providers, routes, factories, seeders) used by `composer build` / `composer serve`. Never ship behavior that only works because of workbench wiring.
 - **`resources/boost/skills/bot-shield-development/SKILL.md`** - the Boost skill shipped to consumers. Regenerate it from the implementation with the `package-generate-skill` skill whenever public APIs, config, commands, tags, or README promises change.
 - **`.agents/`** - agent config, with `.claude` and `CLAUDE.md` symlinked to `.agents` and `AGENTS.md`. Local skills: `package-scaffold`, `package-testing`, `package-release`, `package-compatibility`, `package-generate-skill`.
-- **CI** - `.github/workflows/tests.yml` runs the matrix; `update-changelog.yml` maintains `CHANGELOG.md`.
+- **CI** - `.github/workflows/tests.yml` runs the 12-job matrix (PHP 8.3 to 8.5, Laravel 12 and 13, prefer-lowest and prefer-stable); `update-changelog.yml` writes the version section from the GitHub release body; `sync-main-to-develop.yml` back-merges after a release (push and workflow_run triggers); `release.yml` groups the generated release notes.
 
 ## Invariants (do not violate)
 
@@ -33,7 +33,9 @@ description: Orient in the marshmallow/bot-shield repo - what it is, how the pie
 - `composer.lock` is gitignored on purpose (library, not app) - do not commit it or rely on locked versions.
 - `post-autoload-dump` runs `clear` (`testbench package:purge-skeleton`) then `prepare` (`package:discover`); purge-skeleton deletes generated workbench skeleton files, so do not hand-edit anything it regenerates.
 - `.claude` -> `.agents` and `CLAUDE.md` -> `AGENTS.md` are symlinks. Write to the real paths (`.agents/`, `AGENTS.md`); editing through the symlink can surprise git.
-- The placeholder migration, view, command, and example tests are scaffold artifacts. Replace them as real features land rather than accumulating around them.
+- A published `config/bot-shield.php` replaces the `agents.rules` and `exceptions.rules` lists wholesale (`mergeConfigFrom` is shallow). Every release that adds a rule needs an Upgrading note, and `bot-shield:doctor` lists the defaults a published config lacks.
+- The CI Type Coverage step runs pest-plugin-type-coverage on a single worker (`FORK_MEM_PER_PROC` on the step): its workers share one cache file behind a lock that gives up after 100 ms, and parallel runs corrupt it. Do not remove that env var when touching the workflow.
+- Releases are git-flow: PRs to `develop`, a `release/X.Y.Z` branch into `main` with the Unreleased entries moved into the release notes, then `gh release create`. Never release without an explicit go.
 - Type coverage is `--min=100`, so every new symbol needs full type annotations or CI fails.
 
 For live structure use `fd`/`rg`/`ast-grep`, not a hardcoded file tree.
