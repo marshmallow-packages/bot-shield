@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Marshmallow\BotShield\Captcha\CaptchaManager;
 use Marshmallow\BotShield\Enums\EventType;
@@ -164,4 +165,128 @@ it('honours a configured retention window', function () {
     BotShieldEvent::query()->create(['type' => EventType::ProbePath, 'created_at' => now()->subDays(6)]);
 
     expect((new BotShieldEvent)->pruneAll())->toBe(1);
+});
+
+describe('diagnostic context', function () {
+    it('keeps what google said about a failed verification', function () {
+        configureCaptcha('google-v3');
+        Carbon::setTestNow('2026-10-23 12:00:00');
+        fakeSiteverify([
+            'success' => false,
+            'score' => 0.0,
+            'action' => 'contact',
+            'hostname' => 'example.test',
+            'challenge_ts' => '2026-10-23T11:58:30Z',
+            'error-codes' => ['timeout-or-duplicate'],
+        ]);
+
+        app(CaptchaManager::class)->verify('token', monitoredRequest());
+
+        expect(BotShieldEvent::query()->sole()->context)->toBe([
+            'error_codes' => ['timeout-or-duplicate'],
+            'hostname' => 'example.test',
+            'action' => 'contact',
+            'token_age' => 90,
+            'threshold' => 0.6,
+        ]);
+    });
+
+    it('keeps the hostname, action and token age of a pass as well', function () {
+        configureCaptcha('google-v3');
+        Carbon::setTestNow('2026-10-23 12:00:00');
+        fakeSiteverify([
+            'success' => true,
+            'score' => 0.9,
+            'action' => 'newsletter',
+            'hostname' => 'example.test',
+            'challenge_ts' => '2026-10-23T11:59:55Z',
+        ]);
+
+        app(CaptchaManager::class)->verify('token', monitoredRequest());
+
+        expect(BotShieldEvent::query()->sole()->context)->toBe([
+            'hostname' => 'example.test',
+            'action' => 'newsletter',
+            'token_age' => 5,
+            'threshold' => 0.6,
+        ]);
+    });
+
+    it('stores nothing when google said nothing worth keeping', function () {
+        configureCaptcha('google-v2');
+        fakeSiteverify(['success' => true]);
+
+        app(CaptchaManager::class)->verify('token', monitoredRequest());
+
+        expect(BotShieldEvent::query()->sole()->context)->toBeNull();
+    });
+
+    it('names a missing token without a trip to google', function () {
+        configureCaptcha('google-v3');
+
+        app(CaptchaManager::class)->verify(null, monitoredRequest());
+
+        expect(BotShieldEvent::query()->sole())
+            ->outcome->toBe('missing-token')
+            ->context->toBeNull();
+    });
+
+    it('names the honeypot check that fired on a filled field', function () {
+        monitoredRequest();
+
+        $component = new SpamProtectedComponent;
+        $component->honeypotData = new HoneypotData;
+        $component->honeypotData->contact_reference = 'a bot wrote here';
+
+        $this->travel(5)->seconds();
+
+        expect(fn () => $component->submit())->toThrow(HttpException::class);
+
+        expect(BotShieldEvent::query()->sole()->context)->toBe([
+            'check' => 'field_filled',
+            'value_length' => 16,
+        ]);
+    });
+
+    it('names the honeypot check that fired on a submission that was too fast', function () {
+        monitoredRequest();
+
+        $component = new SpamProtectedComponent;
+        $component->honeypotData = new HoneypotData;
+
+        $this->travel(1)->seconds();
+
+        expect(fn () => $component->submit())->toThrow(HttpException::class);
+
+        expect(BotShieldEvent::query()->sole()->context)->toBe([
+            'check' => 'too_fast',
+            'seconds_since_render' => 1,
+        ]);
+    });
+
+    it('names the honeypot check that fired on a forged timestamp', function () {
+        monitoredRequest();
+
+        $component = new SpamProtectedComponent;
+        $component->honeypotData = new HoneypotData;
+        $component->honeypotData->submitted_from = 'not an encrypted time';
+
+        $this->travel(5)->seconds();
+
+        expect(fn () => $component->submit())->toThrow(HttpException::class);
+
+        expect(BotShieldEvent::query()->sole()->context)->toBe([
+            'check' => 'timestamp_invalid',
+        ]);
+    });
+
+    it('still records the event on a site that has not migrated the column yet', function () {
+        Schema::table('bot_shield_events', function ($table): void {
+            $table->dropColumn('context');
+        });
+
+        app(EventRecorder::class)->record(EventType::ProbePath, 'hit', ['context' => ['path' => '/.env']]);
+
+        expect(BotShieldEvent::query()->count())->toBe(1);
+    });
 });

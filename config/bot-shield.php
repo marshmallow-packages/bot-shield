@@ -350,9 +350,11 @@ return [
 
         /*
         | Every verification is logged with its score, which is how a threshold
-        | gets tuned against real traffic. Turn "log" off for a site that keeps
-        | its record in the events table alone, or where the log volume is not
-        | worth it. "log_channel" is empty for the application default.
+        | gets tuned against real traffic: a pass at info, a refusal at warning
+        | so a stricter log level keeps the failures. Turn "log" off for a site
+        | that keeps its record in the events table alone, or where the log
+        | volume is not worth it. "log_channel" is empty for the application
+        | default.
         */
         'log' => env('BOT_SHIELD_CAPTCHA_LOG', true),
 

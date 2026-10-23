@@ -227,11 +227,13 @@ Schedule::command('model:prune', [
 ])->daily();
 ```
 
+Each row has a `context` column with the reason: Google's `error_codes`, `hostname`, returned `action`, `token_age` and `threshold` for captcha rows, and the honeypot `check` that fired (`field_filled`, `too_fast` with `seconds_since_render`, `timestamp_invalid`) for honeypot rows. Query it when a form "fails as a robot" and the score alone does not explain it. On an upgrade, republish the migrations (`--tag=bot-shield-migrations`) and migrate, or `bot-shield:doctor` warns that the column is missing.
+
 Read the data with `bot-shield:stats --days=7` and `bot-shield:scores --days=30 --form=contact`. `bot-shield:scores` suggests a threshold from the app's own traffic, and declines to suggest one below 50 samples.
 
 Set `monitoring.hash_ips` to `true` where storing visitor addresses for a month exceeds what the privacy notice covers. Counting and grouping still work.
 
-Monitoring is optional like everything else. `BOT_SHIELD_MONITORING_ENABLED=false` stops all recording, no migration needed, and nothing else in the package depends on it. Only `bot-shield:stats` and `bot-shield:scores` need it, and they warn rather than fail. `BOT_SHIELD_CAPTCHA_LOG=false` separately silences the per-verification log line for a site that wants neither.
+Monitoring is optional like everything else. `BOT_SHIELD_MONITORING_ENABLED=false` stops all recording, no migration needed, and nothing else in the package depends on it. Only `bot-shield:stats` and `bot-shield:scores` need it, and they warn rather than fail. `BOT_SHIELD_CAPTCHA_LOG=false` separately silences the per-verification log line for a site that wants neither; that line is `info` for a pass and `warning` for a refusal.
 
 ### 9. Test the consuming app
 

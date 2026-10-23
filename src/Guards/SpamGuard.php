@@ -6,8 +6,10 @@ namespace Marshmallow\BotShield\Guards;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Marshmallow\BotShield\Concerns\ProtectsAgainstSpam;
 use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
@@ -21,6 +23,7 @@ use Spatie\Honeypot\Honeypot;
 use Spatie\Honeypot\Http\Livewire\Concerns\HoneypotData;
 use Spatie\Honeypot\SpamProtection;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * Wraps spatie/laravel-honeypot so the package keeps a stable API of its own,
@@ -92,6 +95,7 @@ final class SpamGuard
 
             $this->recorder->record(EventType::Honeypot, 'tripped', [
                 'component' => $component::class,
+                'context' => $this->reasonFor($data->toArray()),
             ]);
 
             throw new HttpException(
@@ -135,6 +139,66 @@ final class SpamGuard
             class_basename(HoneypotData::class),
             $component::class,
         ));
+    }
+
+    /**
+     * Spatie's check throws a bare SpamException, so the checks are repeated
+     * here in its order to name the one that fired. Diagnostic only: it never
+     * throws, and never records the form payload.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private function reasonFor(array $fields): array
+    {
+        try {
+            $nameField = (string) $this->config->get('honeypot.name_field_name', '');
+            $validFromField = (string) $this->config->get('honeypot.valid_from_field_name', '');
+
+            $trapKey = null;
+
+            foreach (array_keys($fields) as $key) {
+                if ($nameField !== '' && str_starts_with($key, $nameField)) {
+                    $trapKey = $key;
+
+                    break;
+                }
+            }
+
+            if ($trapKey === null) {
+                return ['check' => 'field_missing'];
+            }
+
+            $trap = $fields[$trapKey];
+
+            if (! in_array($trap, [null, ''], true)) {
+                return [
+                    'check' => 'field_filled',
+                    'value_length' => is_string($trap) ? mb_strlen($trap) : null,
+                ];
+            }
+
+            $validFrom = $fields[$validFromField] ?? null;
+
+            if (! is_string($validFrom) || $validFrom === '') {
+                return ['check' => 'timestamp_missing'];
+            }
+
+            $timestamp = $this->container->make(Encrypter::class)->decrypt($validFrom);
+
+            if (! is_numeric($timestamp)) {
+                return ['check' => 'timestamp_invalid'];
+            }
+
+            $renderedAt = (int) $timestamp - (int) $this->config->get('honeypot.amount_of_seconds', 0);
+
+            return [
+                'check' => 'too_fast',
+                'seconds_since_render' => max(0, Date::now()->getTimestamp() - $renderedAt),
+            ];
+        } catch (Throwable) {
+            return ['check' => 'timestamp_invalid'];
+        }
     }
 
     private function truthy(string $configKey): bool

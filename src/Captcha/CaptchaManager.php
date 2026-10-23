@@ -158,18 +158,28 @@ final class CaptchaManager
     private function record(CaptchaVerdict $verdict, Request $request, CaptchaDriver $driver, array $context): void
     {
         if ($this->truthy('bot-shield.captcha.log')) {
-            $this->channel()->info('bot-shield captcha verification', array_merge([
+            $entry = array_merge([
                 'driver' => $driver->name(),
                 'ip' => $request->ip(),
                 'url' => $request->fullUrl(),
-            ], $verdict->context(), $context));
+            ], $verdict->context(), $context);
+
+            // A refusal is logged as a warning so a stricter log level keeps it.
+            if ($verdict->passes()) {
+                $this->channel()->info('bot-shield captcha verification', $entry);
+            } else {
+                $this->channel()->warning('bot-shield captcha verification', $entry);
+            }
         }
+
+        $diagnostics = $verdict->diagnostics();
 
         $this->recorder->record(EventType::Captcha, $verdict->outcome->value, [
             'score' => $verdict->score,
             'form' => $this->stringOrNull($context, 'form'),
             'component' => $this->stringOrNull($context, 'component'),
             'action' => $this->stringOrNull($context, 'action'),
+            'context' => $diagnostics === [] ? null : $diagnostics,
         ]);
     }
 

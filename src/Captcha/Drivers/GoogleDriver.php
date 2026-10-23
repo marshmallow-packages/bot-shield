@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Marshmallow\BotShield\Captcha\Drivers;
 
+use DateTimeImmutable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Marshmallow\BotShield\Captcha\CaptchaVerdict;
 use Marshmallow\BotShield\Contracts\CaptchaDriver;
 use Marshmallow\BotShield\Enums\CaptchaOutcome;
@@ -90,6 +92,49 @@ abstract class GoogleDriver implements CaptchaDriver
     protected function errorCodes(array $payload): array
     {
         return array_values(array_filter((array) ($payload['error-codes'] ?? []), is_string(...)));
+    }
+
+    /**
+     * @param  array<mixed, mixed>  $payload
+     */
+    protected function hostname(array $payload): ?string
+    {
+        $hostname = $payload['hostname'] ?? null;
+
+        return is_string($hostname) && $hostname !== '' ? $hostname : null;
+    }
+
+    /**
+     * @param  array<mixed, mixed>  $payload
+     */
+    protected function action(array $payload): ?string
+    {
+        $action = $payload['action'] ?? null;
+
+        return is_string($action) && $action !== '' ? $action : null;
+    }
+
+    /**
+     * Seconds between the challenge and this verification. A token is valid
+     * for two minutes, so an age near or past that explains a rejection.
+     *
+     * @param  array<mixed, mixed>  $payload
+     */
+    protected function tokenAge(array $payload): ?int
+    {
+        $challengedAt = $payload['challenge_ts'] ?? null;
+
+        if (! is_string($challengedAt) || $challengedAt === '') {
+            return null;
+        }
+
+        try {
+            $challengedAt = new DateTimeImmutable($challengedAt);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return max(0, Date::now()->getTimestamp() - $challengedAt->getTimestamp());
     }
 
     /**

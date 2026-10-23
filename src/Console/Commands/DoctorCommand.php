@@ -236,6 +236,14 @@ class DoctorCommand extends Command
             return;
         }
 
+        if (! Schema::hasColumn('bot_shield_events', 'context')) {
+            $this->reportWarning(
+                'Monitoring',
+                'the context column is missing, so events record no diagnostics. Run: php artisan vendor:publish '
+                .'--tag=bot-shield-migrations && php artisan migrate',
+            );
+        }
+
         $this->reportPass('Monitoring', 'recording, '.(string) config('bot-shield.monitoring.retention_days').' day retention');
 
         $this->checkPruning();

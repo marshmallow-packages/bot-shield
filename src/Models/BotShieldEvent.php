@@ -16,6 +16,7 @@ use Marshmallow\BotShield\Enums\EventType;
  * @property string|null $form
  * @property string|null $component
  * @property string|null $action
+ * @property array<string, mixed>|null $context
  * @property string|null $url
  * @property string|null $ip
  * @property string|null $user_agent
@@ -38,6 +39,7 @@ class BotShieldEvent extends Model
         return [
             'type' => EventType::class,
             'score' => 'float',
+            'context' => 'array',
             'created_at' => 'datetime',
         ];
     }
