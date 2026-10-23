@@ -58,9 +58,12 @@ jobs:
       - name: Linter
         run: composer lint:check
 
-      # The plugin's .temp cache occasionally ends up with interleaved writes
-      # and then fails to parse; a clean retry settles it without a code change.
+      # pest-plugin-type-coverage forks workers that share one cache file behind
+      # a lock it gives up on after 100 ms, so parallel runs corrupt the cache.
+      # The memory budget forces Pokio to a single worker; serial costs ~1 s here.
       - name: Type Coverage
+        env:
+          FORK_MEM_PER_PROC: 1099511627776
         run: composer test:types || (rm -rf vendor/pestphp/pest-plugin-type-coverage/.temp && composer test:types)
 
       - name: Test Suite

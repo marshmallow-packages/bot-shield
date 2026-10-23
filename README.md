@@ -560,6 +560,10 @@ Search engines are never emitted, because they are `block` rather than `deny`.
 
 One row per notable event in `bot_shield_events`: captcha verifications with their score, honeypot trips, blocked submissions, suppressed exceptions and probe path hits.
 
+Each row carries a `context` column with why, when there is a why. A captcha row keeps what Google said beyond the score: `error_codes`, `hostname`, the returned `action`, `token_age` in seconds since the challenge, and the `threshold` that applied. A honeypot row names the `check` that fired: `field_filled` with the length of what was written, `too_fast` with `seconds_since_render`, `timestamp_invalid`, `timestamp_missing` or `field_missing`. The form payload is never stored. A failed verification that produced nothing worth keeping, such as a missing token, stores `null`.
+
+The per-verification log line follows the same split: a pass is logged at `info`, every refusal at `warning`, so a site that logs `warning` and up keeps the failures.
+
 ```bash
 php artisan bot-shield:stats --days=7
 php artisan bot-shield:scores --days=30 --form=contact
@@ -703,6 +707,8 @@ BOT_SHIELD_PROBE_PATHS_ENABLED=false
 
 Full documentation lives in the published `config/bot-shield.php`. The top-level keys:
 
+A published config replaces the `agents.rules` and `exceptions.rules` lists wholesale rather than merging with the package defaults, so a rule the package adds in a later release does nothing on your site until you paste it in. `bot-shield:doctor` lists the package defaults your config lacks, so run it after every update.
+
 | Key | Default | Description |
 | --- | --- | --- |
 | `enabled` | `true` | Master switch. Turns every feature off at once. |
@@ -727,7 +733,7 @@ Full documentation lives in the published `config/bot-shield.php`. The top-level
 | `captcha.score_challenge` | `0.9` | Stricter threshold for `challenge` agents. |
 | `captcha.fail_open` | `false` | Accept submissions when the provider is unreachable. |
 | `captcha.report_outages` | `false` | Report an unreachable provider to your error tracker. |
-| `captcha.log` | `true` | Log every verification with its score. |
+| `captcha.log` | `true` | Log every verification with its score: `info` for a pass, `warning` for a refusal. |
 | `captcha.log_channel` | app default | Channel the above writes to. |
 | `captcha.badge` | `bottomright` | Badge position on the invisible widget, or `inline`. |
 | `captcha.hide_badge` | `false` | Hide the corner badge and show the notice instead. |
@@ -746,7 +752,7 @@ Two notes worth reading before you deploy:
 | Command | Purpose |
 | --- | --- |
 | `bot-shield:install` | Publish config, wire the handler, add env keys. |
-| `bot-shield:doctor` | Check the wiring and configuration. |
+| `bot-shield:doctor` | Check the wiring and configuration, including package default rules your published config lacks. |
 | `bot-shield:stats` | Summarise what was blocked and suppressed. |
 | `bot-shield:scores` | Score distribution and a suggested threshold. |
 | `bot-shield:robots` | robots.txt stanzas for denied agents. |

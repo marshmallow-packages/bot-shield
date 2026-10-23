@@ -24,9 +24,16 @@ final class GoogleV2Driver extends GoogleDriver
             return new CaptchaVerdict(
                 CaptchaOutcome::Failed,
                 errorCodes: $this->errorCodes($payload),
+                hostname: $this->hostname($payload),
+                action: $this->action($payload),
+                tokenAge: $this->tokenAge($payload),
             );
         }
 
-        return CaptchaVerdict::passed();
+        return CaptchaVerdict::passed(
+            hostname: $this->hostname($payload),
+            action: $this->action($payload),
+            tokenAge: $this->tokenAge($payload),
+        );
     }
 }

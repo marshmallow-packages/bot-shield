@@ -23,20 +23,27 @@ final class GoogleV3Driver extends GoogleDriver
         $threshold ??= $this->defaultThreshold();
         $score = $this->score($payload);
 
+        $hostname = $this->hostname($payload);
+        $action = $this->action($payload);
+        $tokenAge = $this->tokenAge($payload);
+
         if (! $this->succeeded($payload)) {
             return new CaptchaVerdict(
                 CaptchaOutcome::Failed,
                 $score,
                 $threshold,
                 $this->errorCodes($payload),
+                $hostname,
+                $action,
+                $tokenAge,
             );
         }
 
         if ($score < $threshold) {
-            return new CaptchaVerdict(CaptchaOutcome::LowScore, $score, $threshold);
+            return new CaptchaVerdict(CaptchaOutcome::LowScore, $score, $threshold, [], $hostname, $action, $tokenAge);
         }
 
-        return CaptchaVerdict::passed($score, $threshold);
+        return CaptchaVerdict::passed($score, $threshold, $hostname, $action, $tokenAge);
     }
 
     /**
