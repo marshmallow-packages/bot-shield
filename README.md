@@ -707,6 +707,8 @@ BOT_SHIELD_PROBE_PATHS_ENABLED=false
 
 Full documentation lives in the published `config/bot-shield.php`. The top-level keys:
 
+A published config replaces the `agents.rules` and `exceptions.rules` lists wholesale rather than merging with the package defaults, so a rule the package adds in a later release does nothing on your site until you paste it in. `bot-shield:doctor` lists the package defaults your config lacks, so run it after every update.
+
 | Key | Default | Description |
 | --- | --- | --- |
 | `enabled` | `true` | Master switch. Turns every feature off at once. |
@@ -750,7 +752,7 @@ Two notes worth reading before you deploy:
 | Command | Purpose |
 | --- | --- |
 | `bot-shield:install` | Publish config, wire the handler, add env keys. |
-| `bot-shield:doctor` | Check the wiring and configuration. |
+| `bot-shield:doctor` | Check the wiring and configuration, including package default rules your published config lacks. |
 | `bot-shield:stats` | Summarise what was blocked and suppressed. |
 | `bot-shield:scores` | Score distribution and a suggested threshold. |
 | `bot-shield:robots` | robots.txt stanzas for denied agents. |

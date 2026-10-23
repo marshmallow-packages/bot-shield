@@ -232,6 +232,40 @@ describe('bot-shield:doctor', function () {
             ->assertFailed();
     });
 
+    /*
+     * Asserted on the whole output: the console wraps a long detail into
+     * several writes, and expectsOutputToContain() looks at one write at a time.
+     */
+    it('lists package default agent rules a published config lacks', function () {
+        $rules = (array) config('bot-shield.agents.rules');
+        config()->set('bot-shield.agents.rules', array_slice($rules, 0, count($rules) - 2));
+
+        Artisan::call('bot-shield:doctor');
+
+        expect(Artisan::output())
+            ->toContain('2 package default agent rule(s) are not in your config')
+            ->toContain('zgrab');
+    });
+
+    it('lists package default exception rules a published config lacks', function () {
+        app(ExceptionHardening::class)->register(app('Illuminate\Contracts\Debug\ExceptionHandler'));
+
+        $rules = (array) config('bot-shield.exceptions.rules');
+        config()->set('bot-shield.exceptions.rules', array_slice($rules, 1));
+
+        Artisan::call('bot-shield:doctor');
+
+        expect(Artisan::output())->toContain('1 package default exception rule(s) are not in your config');
+    });
+
+    it('says nothing about defaults while the config carries them all', function () {
+        app(ExceptionHardening::class)->register(app('Illuminate\Contracts\Debug\ExceptionHandler'));
+
+        Artisan::call('bot-shield:doctor');
+
+        expect(Artisan::output())->not->toContain('package default');
+    });
+
     it('reminds you to schedule pruning', function () {
         $this->artisan('bot-shield:doctor')
             ->expectsOutputToContain('model:prune')

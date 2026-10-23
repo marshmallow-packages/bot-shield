@@ -6,6 +6,7 @@
 
 - A nullable `context` JSON column on `bot_shield_events` that records why. Captcha rows keep Google's `error_codes`, `hostname`, returned `action`, `token_age` in seconds and the `threshold` that applied; honeypot rows name the `check` that fired (`field_filled` with the value length, `too_fast` with `seconds_since_render`, `timestamp_invalid`, `timestamp_missing`, `field_missing`). Never the form payload.
 - `bot-shield:doctor` warns when the events table predates the `context` column.
+- `bot-shield:doctor` lists the package default agent and exception rules a published config lacks, since a published rules list replaces the defaults rather than merging with them. The "paste these rules" step in earlier upgrade notes is now something the doctor tells you about.
 
 ### Changed
 

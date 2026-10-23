@@ -197,7 +197,7 @@ One ordered list in `config/bot-shield.php`, evaluated before any detector, firs
 
 Keep search engines on `block`, not `deny`, so they keep crawling pages while never submitting a form.
 
-Patterns are case-insensitive substrings unless `regex` is true. A malformed rule is discarded rather than allowed to break requests, and `bot-shield:doctor` reports any it dropped. A published `agents.rules` list replaces the defaults, so copy the package rules you want to keep, including the last one that blocks a truncated `Mozilla/5.0 (...)` user agent.
+Patterns are case-insensitive substrings unless `regex` is true. A malformed rule is discarded rather than allowed to break requests, and `bot-shield:doctor` reports any it dropped. A published `agents.rules` list replaces the defaults, so copy the package rules you want to keep, including the last one that blocks a truncated `Mozilla/5.0 (...)` user agent; `bot-shield:doctor` lists the package defaults (agent and exception rules) a published config lacks, so run it after every package update.
 
 ### 7. Register middleware when wanted
 
