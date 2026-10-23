@@ -35,7 +35,7 @@ php artisan bot-shield:install
 
 The edit to `bootstrap/app.php` is purely additive: it inserts one `BotShield::handles($exceptions)` call directly after the opening brace of your `withExceptions()` closure and leaves everything already in there untouched, whatever order it is in. If it cannot find the closure it changes nothing and prints the line for you to paste.
 
-If you use the monitoring table, publish and run the migration:
+If you use the monitoring table, publish and run the migrations:
 
 ```bash
 php artisan vendor:publish --tag="bot-shield-migrations"
@@ -685,7 +685,7 @@ Two features read as on but do nothing until you act: exception hardening needs 
 | Probe path firewall | on | the `BlockProbePaths` middleware registered | `BOT_SHIELD_PROBE_PATHS_ENABLED` |
 | Refuse denied crawlers' page views | **off** | the `DenyAgents` middleware registered | `BOT_SHIELD_DENY_PAGE_VIEWS` |
 | robots.txt stanzas | on demand | | none, run `bot-shield:robots` |
-| Event recording | on | the migration published and run | `BOT_SHIELD_MONITORING_ENABLED` |
+| Event recording | on | the migrations published and run | `BOT_SHIELD_MONITORING_ENABLED` |
 | Hashed addresses in the events table | **off** | | `BOT_SHIELD_MONITORING_HASH_IPS` |
 | Structured captcha logging | on | | `BOT_SHIELD_CAPTCHA_LOG` |
 

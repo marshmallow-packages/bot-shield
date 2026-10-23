@@ -288,3 +288,6 @@ Commands: `bot-shield:install`, `bot-shield:doctor`, `bot-shield:stats`, `bot-sh
 - do not suppress an exception class unconditionally when only some requests are forged: give the rule a `when` class implementing `Marshmallow\BotShield\Contracts\ExceptionCondition` that checks the request
 - do not leave `honeypot.manage_spatie_config` on while also maintaining `config/honeypot.php` by hand, since the package overwrites the keys it owns at boot
 - do not rely on the events table without scheduling `model:prune`
+- do not give a reCAPTCHA `action` a dash, space or digit: Google accepts `A-Za-z/_` only, and the widget then never produces a token. The package throws in `local`/`testing` and rewrites elsewhere, but name it correctly to begin with
+- do not pass `terms="false"` to the widget on a page that hides the badge without rendering `<x-bot-shield::recaptcha-terms />` somewhere on that page; the notice is a condition of hiding the badge
+- do not update the package without rerunning `bot-shield:doctor`: a published config keeps its own rules lists and the doctor names the package defaults it lacks, and a new migration shows up there too
