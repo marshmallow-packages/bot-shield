@@ -2,28 +2,6 @@
 
 ## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.3.0...HEAD)
 
-### Added
-
-- A nullable `context` JSON column on `bot_shield_events` that records why. Captcha rows keep Google's `error_codes`, `hostname`, returned `action`, `token_age` in seconds and the `threshold` that applied; honeypot rows name the `check` that fired (`field_filled` with the value length, `too_fast` with `seconds_since_render`, `timestamp_invalid`, `timestamp_missing`, `field_missing`). Never the form payload.
-- `bot-shield:doctor` warns when the events table predates the `context` column.
-- `bot-shield:doctor` lists the package default agent and exception rules a published config lacks, since a published rules list replaces the defaults rather than merging with them. The "paste these rules" step in earlier upgrade notes is now something the doctor tells you about.
-
-### Changed
-
-- The per-verification captcha log line is written at `warning` for every refusal (failed, low score, missing token, unavailable) and stays at `info` for a pass, so a site with a `warning` log level keeps the failures.
-- Event recording retries without `context` when the insert fails, so a site that updated the package before running the new migration keeps recording events.
-
-### Upgrading
-
-The monitoring table gains a column, published with the migrations tag:
-
-```bash
-php artisan vendor:publish --tag=bot-shield-migrations
-php artisan migrate
-```
-
-Until it runs, events are still recorded, without diagnostics, and `bot-shield:doctor` reminds you.
-
 ## [v1.3.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.2.0...v1.3.0) - 2026-10-23
 
 ### Added
