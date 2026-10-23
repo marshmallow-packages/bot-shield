@@ -110,6 +110,13 @@ return [
             ['pattern' => 'Nmap', 'action' => 'block'],
             ['pattern' => 'masscan', 'action' => 'block'],
             ['pattern' => 'zgrab', 'action' => 'block'],
+
+            /*
+            | A browser user agent cut off after the platform or engine token:
+            | real browsers always append their own token (Chrome/, Firefox/,
+            | Safari/, Mobile/). Last on purpose, so an explicit rule above wins.
+            */
+            ['pattern' => '/^Mozilla\/\d\.\d \([^)]*\)(?: AppleWebKit\/[\d.]+)?$/', 'action' => 'block', 'regex' => true],
         ],
     ],
 

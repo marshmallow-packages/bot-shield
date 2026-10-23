@@ -13,7 +13,8 @@ use Marshmallow\BotShield\Captcha\CaptchaRenderer;
  * <x-bot-shield::recaptcha />
  *
  * Renders nothing while no captcha is configured, so a site without keys is
- * never asked for a token it cannot produce.
+ * never asked for a token it cannot produce. Pass terms="false" to leave the
+ * reCAPTCHA notice out and place <x-bot-shield::recaptcha-terms /> yourself.
  */
 final class Recaptcha extends Component
 {
@@ -36,6 +37,11 @@ final class Recaptcha extends Component
          * compiles to a string and a real boolean respectively.
          */
         private readonly bool|string|null $hideBadge = null,
+        /*
+         * Explicitly true or false leaves the notice in or out whatever the
+         * config says; null keeps the config's choice.
+         */
+        private readonly bool|string|null $terms = null,
     ) {}
 
     public function shouldRender(): bool
@@ -61,6 +67,7 @@ final class Recaptcha extends Component
             'property' => $this->property,
             'badge' => $this->badge,
             'hideBadge' => $this->hideBadge,
+            'terms' => $this->terms,
         ], static fn (bool|string|null $value): bool => $value !== null);
     }
 }

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\View\ViewException;
 
 it('renders nothing while no captcha is configured', function () {
     expect(trim(Blade::render('<x-bot-shield::recaptcha />')))->toBe('');
@@ -171,8 +172,25 @@ describe('hiding the badge', function () {
         configureCaptcha('google-v3');
         config()->set('bot-shield.captcha.hide_badge', true);
 
-        expect(Blade::render('<x-bot-shield::recaptcha :hide-badge="false" />'))
-            ->not->toContain('grecaptcha-badge');
+        $html = Blade::render('<x-bot-shield::recaptcha :hide-badge="false" />');
+
+        /*
+         * The notice exists to compensate for the hidden badge, so a tag that
+         * keeps its badge visible has no reason to carry it (MM-26120).
+         */
+        expect($html)->not->toContain('grecaptcha-badge')
+            ->and($html)->not->toContain('policies.google.com');
+    });
+
+    it('keeps the notice on such a tag when the site asks for the notice itself', function () {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.hide_badge', true);
+        config()->set('bot-shield.captcha.show_terms', true);
+
+        $html = Blade::render('<x-bot-shield::recaptcha :hide-badge="false" />');
+
+        expect($html)->not->toContain('grecaptcha-badge')
+            ->and($html)->toContain('policies.google.com');
     });
 });
 
@@ -193,5 +211,152 @@ describe('the blade directive', function () {
 
     it('renders nothing while no captcha is configured', function () {
         expect(trim(Blade::render('@botShieldRecaptcha')))->toBe('');
+    });
+});
+
+describe('the action name', function () {
+    it('passes a valid action through to the widget', function () {
+        configureCaptcha('google-v3');
+
+        expect(Blade::render('<x-bot-shield::recaptcha action="contact" />'))
+            ->toContain("action: 'contact'");
+    });
+
+    it('accepts slashes and underscores, which google allows', function () {
+        configureCaptcha('google-v3');
+
+        expect(Blade::render('<x-bot-shield::recaptcha action="forms/newsletter_footer" />'))
+            ->toContain("action: 'forms\\/newsletter_footer'");
+    });
+
+    it('refuses an action google would reject while developing or testing', function (string $environment) {
+        configureCaptcha('google-v3');
+        app()->detectEnvironment(static fn (): string => $environment);
+
+        expect(fn () => Blade::render('<x-bot-shield::recaptcha action="newsletter-footer" />'))
+            ->toThrow(ViewException::class, 'reCAPTCHA action "newsletter-footer"');
+    })->with(['local', 'testing']);
+
+    it('rewrites an action google would reject in production rather than failing silently', function () {
+        configureCaptcha('google-v3');
+        app()->detectEnvironment(static fn (): string => 'production');
+
+        expect(Blade::render('<x-bot-shield::recaptcha action="newsletter-footer" />'))
+            ->toContain("action: 'newsletter_footer'");
+    });
+
+    it('applies the same rule to the directive', function () {
+        configureCaptcha('google-v3');
+        app()->detectEnvironment(static fn (): string => 'production');
+
+        expect(Blade::render("@botShieldRecaptcha(['action' => 'contact-form'])"))
+            ->toContain("action: 'contact_form'");
+    });
+});
+
+describe('placing the notice yourself', function () {
+    it('renders the notice on its own', function () {
+        configureCaptcha('google-v3');
+
+        $html = Blade::render('<x-bot-shield::recaptcha-terms />');
+
+        expect($html)->toContain('class="bot-shield-recaptcha-terms"')
+            ->and($html)->toContain('policies.google.com/privacy')
+            ->and($html)->toContain('policies.google.com/terms')
+            ->and($html)->not->toContain('g-recaptcha-response');
+    });
+
+    it('renders the notice whatever the config says, since placing it is the intent', function () {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.show_terms', false);
+        config()->set('bot-shield.captcha.hide_badge', false);
+
+        expect(Blade::render('<x-bot-shield::recaptcha-terms />'))->toContain('policies.google.com/privacy');
+    });
+
+    it('renders nothing while no captcha is configured', function () {
+        expect(trim(Blade::render('<x-bot-shield::recaptcha-terms />')))->toBe('');
+    });
+
+    it('renders nothing while the captcha is disabled', function () {
+        configureCaptcha();
+        config()->set('bot-shield.captcha.enabled', false);
+
+        expect(trim(Blade::render('<x-bot-shield::recaptcha-terms />')))->toBe('');
+    });
+
+    it('passes a class through to the notice', function () {
+        configureCaptcha('google-v3');
+
+        expect(Blade::render('<x-bot-shield::recaptcha-terms class="text-xs text-gray-500" />'))
+            ->toContain('class="bot-shield-recaptcha-terms text-xs text-gray-500"');
+    });
+
+    it('lets a tag leave the notice out so the page can place it elsewhere', function (string $tag) {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.hide_badge', true);
+
+        $html = Blade::render($tag);
+
+        expect($html)->toContain('.grecaptcha-badge')
+            ->and($html)->not->toContain('policies.google.com');
+    })->with([
+        'string attribute' => '<x-bot-shield::recaptcha terms="false" />',
+        'bound boolean' => '<x-bot-shield::recaptcha :terms="false" />',
+        'directive option' => "@botShieldRecaptcha(['terms' => false])",
+    ]);
+
+    it('lets a tag ask for the notice on a site that leaves it off', function () {
+        configureCaptcha('google-v3');
+
+        expect(Blade::render('<x-bot-shield::recaptcha terms="true" />'))
+            ->toContain('policies.google.com/privacy');
+    });
+
+    it('leaves the notice out of the widget on the invisible and checkbox widgets too', function (string $tag) {
+        configureCaptcha('google-v2');
+        config()->set('bot-shield.captcha.show_terms', true);
+
+        expect(Blade::render($tag))->not->toContain('policies.google.com');
+    })->with([
+        'invisible' => '<x-bot-shield::recaptcha size="invisible" terms="false" />',
+        'checkbox' => '<x-bot-shield::recaptcha terms="false" />',
+    ]);
+});
+
+describe('a page with several widgets', function () {
+    it('loads the google script once', function () {
+        configureCaptcha('google-v3');
+
+        $html = Blade::render('<x-bot-shield::recaptcha action="contact" /><x-bot-shield::recaptcha action="newsletter" />');
+
+        expect(substr_count($html, 'api.js?render=test-site-key'))->toBe(1)
+            ->and(substr_count($html, 'name="g-recaptcha-response"'))->toBe(2);
+    });
+
+    it('hides the badge once', function () {
+        configureCaptcha('google-v3');
+        config()->set('bot-shield.captcha.hide_badge', true);
+
+        $html = Blade::render('<x-bot-shield::recaptcha action="contact" /><x-bot-shield::recaptcha action="newsletter" />');
+
+        expect(substr_count($html, '.grecaptcha-badge'))->toBe(1);
+    });
+
+    it('loads the challenge script once as well', function () {
+        configureCaptcha('google-v2');
+
+        $html = Blade::render('<x-bot-shield::recaptcha /><x-bot-shield::recaptcha size="invisible" />');
+
+        expect(substr_count($html, 'api.js'))->toBe(1);
+    });
+
+    it('adds the script through a guard so a livewire update cannot load it twice', function () {
+        configureCaptcha('google-v3');
+
+        $html = Blade::render('<x-bot-shield::recaptcha />');
+
+        expect($html)->not->toContain('<script src=')
+            ->and($html)->toContain("document.querySelector('script[src=");
     });
 });

@@ -143,7 +143,7 @@ Then verify on submit. For Livewire, add `#[ValidatesRecaptcha]` to the action a
 
 Check: `bot-shield:doctor` reports `Captcha ... google-v3, threshold 0.6`. Submit the form once, then `php artisan bot-shield:stats` shows one captcha verification. If the component renders nothing, the keys are missing.
 
-Set `BOT_SHIELD_RECAPTCHA_HIDE_BADGE=true` if you do not want Google's badge in the corner, see [Hiding the badge](#hiding-the-badge).
+Set `BOT_SHIELD_RECAPTCHA_HIDE_BADGE=true` if you do not want Google's badge in the corner, see [Hiding the badge](#hiding-the-badge), and [Placing the notice](#placing-the-notice) to put the required notice next to the submit button rather than above the fields.
 
 > Deployed sites keep their env in the Forge UI, so set both keys there as well as locally.
 
@@ -246,6 +246,8 @@ Search engines ship as `block` rather than `deny` on purpose: they must keep cra
 
 Patterns are case-insensitive substrings unless `regex` is true. A malformed rule is discarded rather than allowed to break request handling, and `bot-shield:doctor` reports any it had to drop.
 
+The defaults end with a regex rule that blocks a truncated browser user agent, `Mozilla/5.0 (Windows NT 10.0; Win64; x64)` with nothing after the platform or engine token. Real browsers always append their own token (`Chrome/`, `Firefox/`, `Safari/`, `Mobile/`); the cut-off form is a scripted client that passes the `user-agent` detector on the `Mozilla/` prefix alone. It is last on purpose, so an explicit rule above it wins.
+
 ### Detector drivers
 
 `user-agent` (the default) treats any user agent without `Mozilla/` as a bot. `crawler-detect` matches against crawler-detect's maintained list instead. You can also name your own class implementing `Marshmallow\BotShield\Contracts\BotDetector`.
@@ -318,6 +320,8 @@ class ContactForm extends Component
 }
 ```
 
+The property may be declared nullable (`public ?HoneypotData $honeypotData = null;`) as long as `mount()` assigns it; the guard explains what to do when it finds it unassigned.
+
 > Use this package's `ProtectsAgainstSpam` rather than spatie's own `UsesSpamProtection` if you want honeypot trips recorded. Both stop the submission, but only this one records the event, so keeping spatie's trait means `bot-shield:stats` reports `Honeypot trips: 0` forever and `assertHoneypotTripped()` can never pass. Keeping the wiring you already have is otherwise a perfectly reasonable minimal adoption.
 
 ### Classic forms
@@ -385,6 +389,19 @@ Drivers are `google-v3` (score based, invisible), `google-v2` (checkbox or invis
 @botShieldRecaptcha(['size' => 'invisible'])
 ```
 
+A page with several forms loads Google's script once, however many widgets it carries.
+
+### Action names
+
+The v3 widget tags every token with an action, `submit` unless the tag names one, and `bot-shield:scores` groups by it. Give each form its own:
+
+```blade
+<x-bot-shield::recaptcha action="contact" />
+<x-bot-shield::recaptcha action="newsletter_footer" />
+```
+
+Google accepts letters, slashes and underscores only (`A-Za-z/_`). Anything else, a dash or a digit included, makes `grecaptcha.execute()` refuse the request on the client: the widget never produces a token, every submission fails as a robot, and nothing reaches the server to log. So the package checks the name for you. In `local` and `testing` an invalid action throws, naming the replacement; in any other environment it is rewritten with underscores (`newsletter-footer` becomes `newsletter_footer`) so a live form keeps working.
+
 ### Moving the badge
 
 The invisible v2 widget takes a position, which is the least invasive way to get the badge out of your layout:
@@ -418,9 +435,33 @@ Or per form, either way round:
 @botShieldRecaptcha(['hideBadge' => true])
 ```
 
+A tag that keeps its badge visible on a site that hides it drops the notice too, since the notice exists to compensate for the hidden badge. Set `show_terms` to keep the notice on every form regardless.
+
 The rule is `visibility: hidden !important`, not `display: none`. Taking the badge out of the layout stops the widget from working, and the `!important` is required rather than defensive: Google sets the badge's visibility in an inline style attribute, which no ordinary stylesheet rule can override. If you already hide the badge in your own CSS, that is the same rule you need, and you can leave this off and use `show_terms` for the notice alone.
 
 Hiding wins over the position: set both and the badge stays hidden. Publish the views with `--tag=bot-shield-views` to reword the notice.
+
+### Placing the notice
+
+The notice renders where the widget sits, and the widget usually sits at the top of the form next to the honeypot, which puts the notice above the fields. To keep the widget there and put the notice in the submit row instead, leave it out of the widget and render it yourself:
+
+```blade
+<form wire:submit="submit">
+    <x-bot-shield::honeypot livewire-model="honeypotData" />
+    <x-bot-shield::recaptcha property="gRecaptchaResponse" terms="false" />
+
+    {{-- fields --}}
+
+    <div class="flex items-center justify-between">
+        <x-bot-shield::recaptcha-terms class="text-xs text-gray-500" />
+        <button type="submit">Send</button>
+    </div>
+</form>
+```
+
+`<x-bot-shield::recaptcha-terms />` renders the notice alone, with any `class` you pass merged onto the paragraph (`bot-shield-recaptcha-terms` stays for your own stylesheet). Placing it is the intent, so it renders whatever `show_terms` says, and nothing at all while no captcha is active. `terms="true"` on the widget forces the notice the other way round; `@botShieldRecaptcha(['terms' => false])` does the same for the directive.
+
+The notice is not optional while the badge is hidden: Google's terms require it on every page where a hidden-badge widget runs. Turning `terms` off on the widget is a promise to render it elsewhere on that page.
 
 Every verification is logged and recorded with its score, pass or fail. That is what makes the threshold reviewable, see `bot-shield:scores` below.
 
