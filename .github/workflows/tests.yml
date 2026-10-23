@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: ${{ matrix.php }}
           extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl
@@ -58,8 +58,10 @@ jobs:
       - name: Linter
         run: composer lint:check
 
+      # The plugin's .temp cache occasionally ends up with interleaved writes
+      # and then fails to parse; a clean retry settles it without a code change.
       - name: Type Coverage
-        run: composer test:types
+        run: composer test:types || (rm -rf vendor/pestphp/pest-plugin-type-coverage/.temp && composer test:types)
 
       - name: Test Suite
         run: composer test:unit

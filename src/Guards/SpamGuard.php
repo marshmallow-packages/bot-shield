@@ -12,6 +12,7 @@ use Marshmallow\BotShield\Concerns\ProtectsAgainstSpam;
 use Marshmallow\BotShield\Contracts\RecordsEvents;
 use Marshmallow\BotShield\Enums\EventType;
 use ReflectionClass;
+use ReflectionNamedType;
 use ReflectionProperty;
 use RuntimeException;
 use Spatie\Honeypot\Events\SpamDetectedEvent;
@@ -82,16 +83,6 @@ final class SpamGuard
 
         $data = $this->honeypotDataOf($component);
 
-        if (! $data instanceof HoneypotData) {
-            throw new RuntimeException(sprintf(
-                'The [%s] trait needs a public %s property. Add "public %s $honeypotData;" to [%s].',
-                ProtectsAgainstSpam::class,
-                HoneypotData::class,
-                class_basename(HoneypotData::class),
-                $component::class,
-            ));
-        }
-
         try {
             $this->container->make(SpamProtection::class)->check($data->toArray());
         } catch (SpamException) {
@@ -110,21 +101,40 @@ final class SpamGuard
         }
     }
 
-    private function honeypotDataOf(object $component): ?HoneypotData
+    /**
+     * The property may be declared nullable, as a component that assigns it in
+     * mount() commonly does, but it must hold a value by the time the action runs.
+     */
+    private function honeypotDataOf(object $component): HoneypotData
     {
         foreach ((new ReflectionClass($component))->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
-            if ($property->getType()?->__toString() !== HoneypotData::class) {
+            $type = $property->getType();
+
+            if (! $type instanceof ReflectionNamedType || $type->getName() !== HoneypotData::class) {
                 continue;
             }
 
-            $value = $property->getValue($component);
+            $value = $property->isInitialized($component) ? $property->getValue($component) : null;
 
             if ($value instanceof HoneypotData) {
                 return $value;
             }
+
+            throw new RuntimeException(sprintf(
+                '[%s::$%s] is null. Assign "new %s" to it in mount() so the honeypot fields can be checked.',
+                $component::class,
+                $property->getName(),
+                class_basename(HoneypotData::class),
+            ));
         }
 
-        return null;
+        throw new RuntimeException(sprintf(
+            'The [%s] trait needs a public %s property. Add "public %s $honeypotData;" to [%s].',
+            ProtectsAgainstSpam::class,
+            HoneypotData::class,
+            class_basename(HoneypotData::class),
+            $component::class,
+        ));
     }
 
     private function truthy(string $configKey): bool

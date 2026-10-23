@@ -2,6 +2,7 @@
 
 ## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.2.0...HEAD)
 
+
 ## [v1.2.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.1.1...v1.2.0) - 2026-10-05
 
 ### Added
