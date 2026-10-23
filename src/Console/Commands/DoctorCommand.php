@@ -93,6 +93,13 @@ class DoctorCommand extends Command
         if ($hardening->isRegistered()) {
             $this->reportPass('Exception hardening', 'wired');
 
+            $this->checkDefaultRules('exceptions.rules', 'exception', static function (array $rule): string {
+                $class = is_string($rule['class'] ?? null) ? class_basename($rule['class']) : '?';
+                $contains = array_filter((array) ($rule['contains'] ?? []), is_string(...));
+
+                return $contains === [] ? $class : $class.' ('.implode(', ', $contains).')';
+            });
+
             return;
         }
 
@@ -158,6 +165,44 @@ class DoctorCommand extends Command
         }
 
         $this->reportPass('Agent rules', count($parsed).' active');
+
+        $this->checkDefaultRules('agents.rules', 'agent', static fn (array $rule): string => (string) ($rule['pattern'] ?? '?'));
+    }
+
+    /**
+     * A published config replaces a rules list wholesale, so a rule the package
+     * added after the site published its config does nothing there until it
+     * is pasted in. Listing the gap beats a changelog note nobody rereads.
+     *
+     * @param  callable(array<mixed, mixed>): string  $describe
+     */
+    private function checkDefaultRules(string $key, string $kind, callable $describe): void
+    {
+        $defaults = (array) data_get($this->packageDefaults(), $key, []);
+        $configured = (array) config('bot-shield.'.$key, []);
+
+        $missing = array_filter($defaults, static fn (mixed $rule): bool => is_array($rule) && ! in_array($rule, $configured, true));
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->reportWarning(ucfirst($kind).' rules', sprintf(
+            '%d package default %s rule(s) are not in your config: %s. Removed on purpose, or added since you published? Paste them from config/bot-shield.php in the package.',
+            count($missing),
+            $kind,
+            implode(', ', array_map($describe, array_values($missing))),
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function packageDefaults(): array
+    {
+        $defaults = require __DIR__.'/../../../config/bot-shield.php';
+
+        return is_array($defaults) ? $defaults : [];
     }
 
     private function checkCaptcha(): void
