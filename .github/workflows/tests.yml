@@ -58,8 +58,10 @@ jobs:
       - name: Linter
         run: composer lint:check
 
+      # The plugin's .temp cache occasionally ends up with interleaved writes
+      # and then fails to parse; a clean retry settles it without a code change.
       - name: Type Coverage
-        run: composer test:types
+        run: composer test:types || (rm -rf vendor/pestphp/pest-plugin-type-coverage/.temp && composer test:types)
 
       - name: Test Suite
         run: composer test:unit
