@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.0...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.1...HEAD)
+
+## [v1.4.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.0...v1.4.1) - 2026-10-26
 
 ### Fixed
 
