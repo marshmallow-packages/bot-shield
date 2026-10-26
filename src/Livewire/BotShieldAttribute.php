@@ -49,6 +49,19 @@ abstract class BotShieldAttribute extends LivewireAttribute
     }
 
     /**
+     * Only a property that holds a string is touched: a token that came from
+     * the request payload has no property to blank.
+     */
+    protected function blankComponentProperty(string $name): void
+    {
+        if (! is_string($this->componentProperty($name))) {
+            return;
+        }
+
+        data_set($this->component, $name, '');
+    }
+
+    /**
      * Stop the action and surface a validation error on the component.
      *
      * Livewire turns a ValidationException into component errors only when it

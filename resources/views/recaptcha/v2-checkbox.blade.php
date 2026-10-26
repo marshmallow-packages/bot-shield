@@ -1,8 +1,3 @@
-@php
-    $elementId = 'bot-shield-recaptcha-'.bin2hex(random_bytes(6));
-    $callback = 'botShieldRecaptcha'.bin2hex(random_bytes(6));
-@endphp
-
 <input
     type="hidden"
     id="{{ $elementId }}"
@@ -13,6 +8,7 @@
 
 <div
     class="g-recaptcha"
+    wire:ignore
     data-sitekey="{{ $siteKey }}"
     data-theme="{{ $theme }}"
     data-size="{{ $size }}"
