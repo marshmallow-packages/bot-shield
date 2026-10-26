@@ -86,11 +86,13 @@ class ContactForm extends Component
     public string $gRecaptchaResponse = '';
 
     #[BlocksBots]
-    #[ValidatesRecaptcha]
     #[RateLimitsSubmissions(attempts: 3, seconds: 60)]
+    #[ValidatesRecaptcha]
     public function submit(): void {}
 }
 ```
+
+Declare `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`: attributes run in declaration order, so a client over its limit gets the 429 before a verification call is spent on it. Every submit counts, including one the captcha refused.
 
 - `#[ValidatesRecaptcha(property: 'gRecaptchaResponse', form: null)]` reads the token from that component property, falling back to the request payload.
 - `#[RateLimitsSubmissions(attempts: null, seconds: null, form: null)]` uses the configured defaults when the arguments are omitted.

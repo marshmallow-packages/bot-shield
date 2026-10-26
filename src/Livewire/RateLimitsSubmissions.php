@@ -14,9 +14,9 @@ use Marshmallow\BotShield\Guards\SubmissionLimiter;
  *     #[RateLimitsSubmissions(attempts: 3, seconds: 60)]
  *     public function submit(): void
  *
- * Omit the arguments to use the configured defaults. A submit refused only
- * because it resent a spent captcha token is not counted: that is a stale
- * page, not a flood.
+ * Omit the arguments to use the configured defaults. Every submit counts,
+ * including one refused for a spent captcha token: a replayed token is the
+ * cheapest flood there is, and a double click costs a human one attempt.
  */
 #[Attribute(Attribute::TARGET_METHOD)]
 final class RateLimitsSubmissions extends BotShieldAttribute
@@ -43,13 +43,10 @@ final class RateLimitsSubmissions extends BotShieldAttribute
 
         $limiter->ensureAllowed($request, $form, $this->attempts);
 
-        // Livewire runs this after every attribute hook and the action, so the
-        // captcha verdict is known whichever order the attributes are declared in.
+        // Livewire runs this after every attribute hook and the action, so a
+        // submit the captcha refused is counted whichever order the attributes
+        // are declared in.
         return function () use ($limiter, $request, $form): void {
-            if ($request->attributes->getBoolean(ValidatesRecaptcha::SPENT_TOKEN)) {
-                return;
-            }
-
             $limiter->count($request, $form, $this->seconds);
         };
     }

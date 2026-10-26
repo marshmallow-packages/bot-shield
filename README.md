@@ -271,14 +271,16 @@ class ContactForm extends Component
     public string $gRecaptchaResponse = '';
 
     #[BlocksBots]
-    #[ValidatesRecaptcha]
     #[RateLimitsSubmissions(attempts: 3, seconds: 60)]
+    #[ValidatesRecaptcha]
     public function submit(): void
     {
         // Only runs once every check passes.
     }
 }
 ```
+
+Livewire runs the attributes in declaration order, so put `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`: an address that is already over its limit then gets its 429 before the package spends a verification call on it. Every submit counts toward the limit, also one the captcha refused, so a client replaying one spent token runs into the limit like any other flood.
 
 > Two different classes are called `ValidatesRecaptcha`. The Livewire **attribute** is `Marshmallow\BotShield\Livewire\ValidatesRecaptcha`, used as `#[ValidatesRecaptcha]` above. The FormRequest **trait** is `Marshmallow\BotShield\Concerns\ValidatesRecaptcha`, shown under [Classic forms](#classic-forms). Import the wrong one and the attribute fails in a way that does not mention the import, so check the namespace first if it misbehaves.
 

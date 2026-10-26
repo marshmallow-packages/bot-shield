@@ -149,16 +149,18 @@ describe('the RateLimitsSubmissions attribute with a captcha', function () {
         configureCaptcha('google-v3');
     });
 
-    it('does not count a submit that resent a spent token', function () {
+    it('counts a submit that resent a spent token, so a replayed token cannot bypass the limit', function () {
         fakeSiteverify(['success' => false, 'error-codes' => ['timeout-or-duplicate']]);
 
         $component = Livewire::test(ThrottledCaptchaComponent::class)->set('gRecaptchaResponse', 'spent');
 
-        foreach (range(1, 4) as $ignored) {
-            $component->call('submit')->assertHasErrors('g-recaptcha-response');
-        }
+        $component->call('submit')->assertHasErrors('g-recaptcha-response');
+        $component->call('submit')->assertHasErrors('g-recaptcha-response');
 
-        expect(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeFalse();
+        $component->call('submit')->assertStatus(429);
+
+        expect(ThrottledCaptchaComponent::$runs)->toBe(0)
+            ->and(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeTrue();
     });
 
     it('still counts a submit refused for a low score', function () {
