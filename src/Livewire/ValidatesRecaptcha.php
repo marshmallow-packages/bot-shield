@@ -50,6 +50,10 @@ final class ValidatesRecaptcha extends BotShieldAttribute
             'form' => $this->form,
         ]);
 
+        // A token is single use. Blanking the property means a retry can never
+        // resend this one, even when the client script no longer refreshes it.
+        $this->blankComponentProperty($this->property);
+
         if ($verdict->passes()) {
             return;
         }

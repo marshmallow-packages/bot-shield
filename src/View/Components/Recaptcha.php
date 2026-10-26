@@ -32,6 +32,7 @@ final class Recaptcha extends Component
         private readonly ?string $action = null,
         private readonly ?string $property = null,
         private readonly ?string $badge = null,
+        private readonly ?string $id = null,
         /*
          * Accepts both hide-badge="true" and :hide-badge="$flag", which blade
          * compiles to a string and a real boolean respectively.
@@ -66,6 +67,7 @@ final class Recaptcha extends Component
             'action' => $this->action,
             'property' => $this->property,
             'badge' => $this->badge,
+            'id' => $this->id,
             'hideBadge' => $this->hideBadge,
             'terms' => $this->terms,
         ], static fn (bool|string|null $value): bool => $value !== null);

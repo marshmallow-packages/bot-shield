@@ -360,3 +360,72 @@ describe('a page with several widgets', function () {
             ->and($html)->toContain("document.querySelector('script[src=");
     });
 });
+
+describe('the widget survives a livewire re-render', function () {
+    function widgetId(string $html): string
+    {
+        preg_match('/<input[^>]*\sid="([^"]+)"/', $html, $matches);
+
+        return $matches[1] ?? '';
+    }
+
+    it('keeps the score based widget element id stable across renders', function () {
+        configureCaptcha('google-v3');
+
+        $first = widgetId(Blade::render('<x-bot-shield::recaptcha property="gRecaptchaResponse" />'));
+        $second = widgetId(Blade::render('<x-bot-shield::recaptcha property="gRecaptchaResponse" />'));
+
+        expect($first)->not->toBe('')
+            ->and($second)->toBe($first);
+    });
+
+    it('keeps the checkbox and invisible widget element ids stable across renders', function () {
+        configureCaptcha('google-v2');
+
+        $checkbox = Blade::render('<x-bot-shield::recaptcha />');
+        $invisible = Blade::render('<x-bot-shield::recaptcha size="invisible" />');
+
+        expect(widgetId(Blade::render('<x-bot-shield::recaptcha />')))->toBe(widgetId($checkbox))
+            ->and(widgetId(Blade::render('<x-bot-shield::recaptcha size="invisible" />')))->toBe(widgetId($invisible))
+            ->and(Blade::render('<x-bot-shield::recaptcha size="invisible" />'))->toBe($invisible);
+    });
+
+    it('derives a different element id for a different action or property', function () {
+        configureCaptcha('google-v3');
+
+        $contact = widgetId(Blade::render('<x-bot-shield::recaptcha action="contact" />'));
+        $rma = widgetId(Blade::render('<x-bot-shield::recaptcha action="rma" />'));
+        $bound = widgetId(Blade::render('<x-bot-shield::recaptcha action="contact" property="gRecaptchaResponse" />'));
+
+        expect($contact)->not->toBe($rma)
+            ->and($contact)->not->toBe($bound);
+    });
+
+    it('lets the tag choose the element id', function () {
+        configureCaptcha('google-v3');
+
+        expect(widgetId(Blade::render('<x-bot-shield::recaptcha id="contact-captcha" />')))->toBe('contact-captcha');
+    });
+
+    it('lets the directive choose the element id', function () {
+        configureCaptcha('google-v3');
+
+        expect(widgetId(Blade::render("@botShieldRecaptcha(['id' => 'contact-captcha'])")))->toBe('contact-captcha');
+    });
+
+    it('resolves the field again on every refresh instead of holding the first node', function () {
+        configureCaptcha('google-v3');
+
+        $html = Blade::render('<x-bot-shield::recaptcha />');
+
+        expect($html)->not->toContain('var field = document.getElementById')
+            ->and($html)->toContain('function field()');
+    });
+
+    it('tells livewire to leave the rendered challenge widget alone', function () {
+        configureCaptcha('google-v2');
+
+        expect(Blade::render('<x-bot-shield::recaptcha />'))->toMatch('/<div[^>]*class="g-recaptcha"[^>]*wire:ignore/s')
+            ->and(Blade::render('<x-bot-shield::recaptcha size="invisible" />'))->toMatch('/<div[^>]*class="g-recaptcha"[^>]*wire:ignore/s');
+    });
+});

@@ -149,16 +149,18 @@ describe('the RateLimitsSubmissions attribute with a captcha', function () {
         configureCaptcha('google-v3');
     });
 
-    it('does not count a submit that resent a spent token', function () {
+    it('counts a submit that resent a spent token, so a replayed token cannot bypass the limit', function () {
         fakeSiteverify(['success' => false, 'error-codes' => ['timeout-or-duplicate']]);
 
         $component = Livewire::test(ThrottledCaptchaComponent::class)->set('gRecaptchaResponse', 'spent');
 
-        foreach (range(1, 4) as $ignored) {
-            $component->call('submit')->assertHasErrors('g-recaptcha-response');
-        }
+        $component->call('submit')->assertHasErrors('g-recaptcha-response');
+        $component->call('submit')->assertHasErrors('g-recaptcha-response');
 
-        expect(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeFalse();
+        $component->call('submit')->assertStatus(429);
+
+        expect(ThrottledCaptchaComponent::$runs)->toBe(0)
+            ->and(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeTrue();
     });
 
     it('still counts a submit refused for a low score', function () {
@@ -176,11 +178,12 @@ describe('the RateLimitsSubmissions attribute with a captcha', function () {
     it('counts a submit that passed', function () {
         fakeSiteverify(['success' => true, 'score' => 0.9]);
 
-        $component = Livewire::test(ThrottledCaptchaComponent::class)->set('gRecaptchaResponse', 'token');
+        $component = Livewire::test(ThrottledCaptchaComponent::class);
 
-        $component->call('submit');
-        $component->call('submit');
-        $component->call('submit');
+        // The client fetches a fresh token per attempt; the package blanks the spent one.
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
 
         expect(ThrottledCaptchaComponent::$runs)->toBe(2)
             ->and(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeTrue();

@@ -1,6 +1,25 @@
 # Release Notes
 
-## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.0...HEAD)
+## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.1...HEAD)
+
+## [v1.4.1](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.0...v1.4.1) - 2026-10-26
+
+### Fixed
+
+- The reCAPTCHA widget's element id is derived from its action, property and field instead of being random per render. Livewire morphs by element id, so the random id made every re-render of the component replace the hidden input: the inline v3 script kept a reference to the detached node, its commit hook and 100 second refresh both stopped, and `wire:model` refilled the new input with the spent token. A visitor who corrected a validation error was then refused as a robot and only a page reload recovered. The v3 and invisible v2 scripts now also resolve the input on every use, and the v2 widget containers carry `wire:ignore` so a morph leaves the rendered widget alone.
+- `#[ValidatesRecaptcha]` blanks the token property after every verification, pass or fail. A token is single use, so a retry can never resend the one just spent, whatever the client script does.
+- `#[RateLimitsSubmissions]` counts every submit again, including one that `#[ValidatesRecaptcha]` refused for a spent or expired token (`timeout-or-duplicate`). The exemption added in v1.2.0 let a client replay one spent token without limit: the captcha refused each attempt, but no `rate-limited` event was ever recorded and no 429 was ever sent. A human who double clicks or submits a stale page now spends one attempt of the configured five.
+
+### Changed
+
+- `<x-bot-shield::recaptcha id="...">` and `@botShieldRecaptcha(['id' => ...])` set the widget's element id for a page that carries two widgets with the same action and property.
+- The README and the Boost skill declare `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`. Livewire runs the attributes in declaration order, so a client over its limit now gets the 429 before a verification call is spent on it. The order never changed what was counted.
+
+### Upgrading
+
+Swap the two attributes on your Livewire actions so `#[RateLimitsSubmissions]` comes first. The old order keeps working, it only costs a siteverify call per rate-limited request.
+
+An action that reads the token property itself finds it empty from this release on; the attribute has already verified it. A page with two widgets sharing one action and property now needs a distinct `action`, `property` or `id` per widget, or both scripts talk to the first input.
 
 ## [v1.4.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.3.0...v1.4.0) - 2026-10-23
 

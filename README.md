@@ -35,7 +35,7 @@ php artisan bot-shield:install
 
 The edit to `bootstrap/app.php` is purely additive: it inserts one `BotShield::handles($exceptions)` call directly after the opening brace of your `withExceptions()` closure and leaves everything already in there untouched, whatever order it is in. If it cannot find the closure it changes nothing and prints the line for you to paste.
 
-If you use the monitoring table, publish and run the migration:
+If you use the monitoring table, publish and run the migrations:
 
 ```bash
 php artisan vendor:publish --tag="bot-shield-migrations"
@@ -271,14 +271,16 @@ class ContactForm extends Component
     public string $gRecaptchaResponse = '';
 
     #[BlocksBots]
-    #[ValidatesRecaptcha]
     #[RateLimitsSubmissions(attempts: 3, seconds: 60)]
+    #[ValidatesRecaptcha]
     public function submit(): void
     {
         // Only runs once every check passes.
     }
 }
 ```
+
+Livewire runs the attributes in declaration order, so put `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`: an address that is already over its limit then gets its 429 before the package spends a verification call on it. Every submit counts toward the limit, also one the captcha refused, so a client replaying one spent token runs into the limit like any other flood.
 
 > Two different classes are called `ValidatesRecaptcha`. The Livewire **attribute** is `Marshmallow\BotShield\Livewire\ValidatesRecaptcha`, used as `#[ValidatesRecaptcha]` above. The FormRequest **trait** is `Marshmallow\BotShield\Concerns\ValidatesRecaptcha`, shown under [Classic forms](#classic-forms). Import the wrong one and the attribute fails in a way that does not mention the import, so check the namespace first if it misbehaves.
 
@@ -292,6 +294,8 @@ In the component's view:
     <button type="submit">Send</button>
 </form>
 ```
+
+The widget's element id is derived from its action, property and field, so it comes out the same on every render and Livewire's morph patches the input in place instead of replacing it. Two widgets on one page need a different `action` or `property`, or an explicit `id="..."` on the tag. After every verification, pass or fail, `#[ValidatesRecaptcha]` blanks the token property: a token is single use, and the widget fetches a fresh one on the next round trip.
 
 For components that cannot use attributes, the equivalent traits are available:
 
@@ -564,6 +568,8 @@ Each row carries a `context` column with why, when there is a why. A captcha row
 
 The per-verification log line follows the same split: a pass is logged at `info`, every refusal at `warning`, so a site that logs `warning` and up keeps the failures.
 
+A captcha row with outcome `passed` records the verdict, not the submission: the form's own validation runs after the captcha, so a pass followed by a validation error stores a `passed` row and no submission.
+
 ```bash
 php artisan bot-shield:stats --days=7
 php artisan bot-shield:scores --days=30 --form=contact
@@ -685,7 +691,7 @@ Two features read as on but do nothing until you act: exception hardening needs 
 | Probe path firewall | on | the `BlockProbePaths` middleware registered | `BOT_SHIELD_PROBE_PATHS_ENABLED` |
 | Refuse denied crawlers' page views | **off** | the `DenyAgents` middleware registered | `BOT_SHIELD_DENY_PAGE_VIEWS` |
 | robots.txt stanzas | on demand | | none, run `bot-shield:robots` |
-| Event recording | on | the migration published and run | `BOT_SHIELD_MONITORING_ENABLED` |
+| Event recording | on | the migrations published and run | `BOT_SHIELD_MONITORING_ENABLED` |
 | Hashed addresses in the events table | **off** | | `BOT_SHIELD_MONITORING_HASH_IPS` |
 | Structured captcha logging | on | | `BOT_SHIELD_CAPTCHA_LOG` |
 
