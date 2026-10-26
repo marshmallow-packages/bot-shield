@@ -80,7 +80,42 @@ final class CaptchaRenderer
             'badge' => $this->option($options, 'badge', 'bot-shield.captcha.badge', 'bottomright'),
             'hideBadge' => $hideBadge,
             'showTerms' => $this->showTerms($options, $hideBadge),
+            'elementId' => $this->elementId($options),
+            'callback' => 'botShieldRecaptcha'.$this->widgetKey($options),
         ];
+    }
+
+    /**
+     * Livewire morphs by element id, so the id must come out the same on every
+     * render of the same widget or the morph replaces the input and the inline
+     * script keeps talking to a detached node. Two widgets on one page need a
+     * different action, property or an explicit id.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    private function elementId(array $options): string
+    {
+        $id = $this->stringOption($options, 'id', '');
+
+        if ($id !== '') {
+            return $id;
+        }
+
+        return 'bot-shield-recaptcha-'.$this->widgetKey($options);
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function widgetKey(array $options): string
+    {
+        return substr(hash('sha256', implode('|', [
+            $this->view($options),
+            $this->captcha->fieldName(),
+            $this->action($options),
+            $this->stringOption($options, 'property', ''),
+            $this->stringOption($options, 'id', ''),
+        ])), 0, 12);
     }
 
     /**

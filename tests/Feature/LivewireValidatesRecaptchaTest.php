@@ -111,3 +111,25 @@ it('runs the action when the provider is unreachable and failing open is on', fu
 
     expect(CaptchaComponent::$runs)->toBe(1);
 });
+
+it('blanks the token property after a refused verification so a stale token is never resent', function () {
+    configureCaptcha('google-v3');
+    fakeSiteverify(['success' => false, 'error-codes' => ['timeout-or-duplicate']]);
+
+    Livewire::test(CaptchaComponent::class)
+        ->set('gRecaptchaResponse', 'spent')
+        ->call('submit')
+        ->assertHasErrors('g-recaptcha-response')
+        ->assertSet('gRecaptchaResponse', '');
+});
+
+it('blanks the token property after a passed verification too, since a token is single use', function () {
+    configureCaptcha('google-v3');
+    fakeSiteverify(['success' => true, 'score' => 0.9]);
+
+    Livewire::test(CaptchaComponent::class)
+        ->set('gRecaptchaResponse', 'token')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSet('gRecaptchaResponse', '');
+});

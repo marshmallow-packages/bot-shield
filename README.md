@@ -295,6 +295,8 @@ In the component's view:
 </form>
 ```
 
+The widget's element id is derived from its action, property and field, so it comes out the same on every render and Livewire's morph patches the input in place instead of replacing it. Two widgets on one page need a different `action` or `property`, or an explicit `id="..."` on the tag. After every verification, pass or fail, `#[ValidatesRecaptcha]` blanks the token property: a token is single use, and the widget fetches a fresh one on the next round trip.
+
 For components that cannot use attributes, the equivalent traits are available:
 
 ```php
@@ -565,6 +567,8 @@ One row per notable event in `bot_shield_events`: captcha verifications with the
 Each row carries a `context` column with why, when there is a why. A captcha row keeps what Google said beyond the score: `error_codes`, `hostname`, the returned `action`, `token_age` in seconds since the challenge, and the `threshold` that applied. A honeypot row names the `check` that fired: `field_filled` with the length of what was written, `too_fast` with `seconds_since_render`, `timestamp_invalid`, `timestamp_missing` or `field_missing`. The form payload is never stored. A failed verification that produced nothing worth keeping, such as a missing token, stores `null`.
 
 The per-verification log line follows the same split: a pass is logged at `info`, every refusal at `warning`, so a site that logs `warning` and up keeps the failures.
+
+A captcha row with outcome `passed` records the verdict, not the submission: the form's own validation runs after the captcha, so a pass followed by a validation error stores a `passed` row and no submission.
 
 ```bash
 php artisan bot-shield:stats --days=7

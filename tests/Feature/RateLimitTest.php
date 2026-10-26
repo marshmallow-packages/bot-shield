@@ -178,11 +178,12 @@ describe('the RateLimitsSubmissions attribute with a captcha', function () {
     it('counts a submit that passed', function () {
         fakeSiteverify(['success' => true, 'score' => 0.9]);
 
-        $component = Livewire::test(ThrottledCaptchaComponent::class)->set('gRecaptchaResponse', 'token');
+        $component = Livewire::test(ThrottledCaptchaComponent::class);
 
-        $component->call('submit');
-        $component->call('submit');
-        $component->call('submit');
+        // The client fetches a fresh token per attempt; the package blanks the spent one.
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
+        $component->set('gRecaptchaResponse', 'token')->call('submit');
 
         expect(ThrottledCaptchaComponent::$runs)->toBe(2)
             ->and(BotShieldEvent::query()->where('outcome', 'rate-limited')->exists())->toBeTrue();

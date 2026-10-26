@@ -1,7 +1,3 @@
-@php
-    $elementId = 'bot-shield-recaptcha-'.bin2hex(random_bytes(6));
-@endphp
-
 <input
     type="hidden"
     id="{{ $elementId }}"
@@ -18,15 +14,26 @@
 
 <script>
     (function () {
-        var field = document.getElementById(@js($elementId));
+        // Resolved on every use: a Livewire morph higher up the tree can still
+        // replace the input, and a held reference would then point at a
+        // detached node.
+        function field() {
+            return document.getElementById(@js($elementId));
+        }
 
-        if (! field) {
+        if (! field()) {
             return;
         }
 
         function apply(token) {
-            field.value = token;
-            field.dispatchEvent(new Event('input', { bubbles: true }));
+            var input = field();
+
+            if (! input) {
+                return;
+            }
+
+            input.value = token;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         function refresh() {
@@ -51,13 +58,13 @@
         // trip of the component that holds this field.
         function watchLivewire() {
             window.Livewire.hook('commit', function (hook) {
-                if (! hook.component.el.contains(field)) {
+                if (! hook.component.el.contains(field())) {
                     return;
                 }
 
                 hook.succeed(function () {
                     queueMicrotask(function () {
-                        if (document.contains(field)) {
+                        if (field()) {
                             refresh();
                         }
                     });

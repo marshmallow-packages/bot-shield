@@ -94,6 +94,8 @@ class ContactForm extends Component
 
 Declare `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`: attributes run in declaration order, so a client over its limit gets the 429 before a verification call is spent on it. Every submit counts, including one the captcha refused.
 
+The widget's element id is derived from its action, property and field so Livewire's morph patches it in place; two widgets on one page need a different `action` or `property`, or an explicit `id`. `#[ValidatesRecaptcha]` blanks the token property after every verification, pass or fail, because a token is single use; the widget fetches a fresh one on the next round trip. Do not read the property inside the action.
+
 - `#[ValidatesRecaptcha(property: 'gRecaptchaResponse', form: null)]` reads the token from that component property, falling back to the request payload.
 - `#[RateLimitsSubmissions(attempts: null, seconds: null, form: null)]` uses the configured defaults when the arguments are omitted.
 
@@ -230,6 +232,8 @@ Schedule::command('model:prune', [
 ```
 
 Each row has a `context` column with the reason: Google's `error_codes`, `hostname`, returned `action`, `token_age` and `threshold` for captcha rows, and the honeypot `check` that fired (`field_filled`, `too_fast` with `seconds_since_render`, `timestamp_invalid`) for honeypot rows. Query it when a form "fails as a robot" and the score alone does not explain it. On an upgrade, republish the migrations (`--tag=bot-shield-migrations`) and migrate, or `bot-shield:doctor` warns that the column is missing.
+
+A captcha row with outcome `passed` records the verdict, not a stored submission: the form's own validation runs after the captcha, so a pass followed by a validation error leaves a `passed` row and nothing else.
 
 Read the data with `bot-shield:stats --days=7` and `bot-shield:scores --days=30 --form=contact`. `bot-shield:scores` suggests a threshold from the app's own traffic, and declines to suggest one below 50 samples.
 
