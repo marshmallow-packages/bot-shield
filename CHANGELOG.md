@@ -2,6 +2,18 @@
 
 ## [Unreleased](https://github.com/marshmallow-packages/bot-shield/compare/v1.4.0...HEAD)
 
+### Fixed
+
+- `#[RateLimitsSubmissions]` counts every submit again, including one that `#[ValidatesRecaptcha]` refused for a spent or expired token (`timeout-or-duplicate`). The exemption added in v1.2.0 let a client replay one spent token without limit: the captcha refused each attempt, but no `rate-limited` event was ever recorded and no 429 was ever sent. A human who double clicks or submits a stale page now spends one attempt of the configured five.
+
+### Changed
+
+- The README and the Boost skill declare `#[RateLimitsSubmissions]` above `#[ValidatesRecaptcha]`. Livewire runs the attributes in declaration order, so a client over its limit now gets the 429 before a verification call is spent on it. The order never changed what was counted.
+
+### Upgrading
+
+Swap the two attributes on your Livewire actions so `#[RateLimitsSubmissions]` comes first. The old order keeps working, it only costs a siteverify call per rate-limited request.
+
 ## [v1.4.0](https://github.com/marshmallow-packages/bot-shield/compare/v1.3.0...v1.4.0) - 2026-10-23
 
 ### Added
